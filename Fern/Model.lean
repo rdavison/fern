@@ -1,5 +1,7 @@
 module
-public import Mathlib.Data.Finset.Defs
+public import Mathlib.Data.Finset.Sort
+public import Mathlib.Data.Prod.Lex
+public import Mathlib.Algebra.Order.Ring.Unbundled.Rat
 
 /-- Each physical finger used for typing. -/
 public inductive Finger where
@@ -43,12 +45,58 @@ public inductive KeyId where
   | f1 | f2 | f3 | f4 | f5 | f6 | f7 | f8 | f9 | f10 | f11 | f12
   deriving DecidableEq, Repr, BEq, Hashable
 
+/-- Numeric encoding for ordering. -/
+public def KeyId.toNat : KeyId → Nat
+  | .a => 0 | .b => 1 | .c => 2 | .d => 3 | .e => 4
+  | .f => 5 | .g => 6 | .h => 7 | .i => 8 | .j => 9
+  | .k => 10 | .l => 11 | .m => 12 | .n => 13 | .o => 14
+  | .p => 15 | .q => 16 | .r => 17 | .s => 18 | .t => 19
+  | .u => 20 | .v => 21 | .w => 22 | .x => 23 | .y => 24
+  | .z => 25
+  | .n0 => 26 | .n1 => 27 | .n2 => 28 | .n3 => 29 | .n4 => 30
+  | .n5 => 31 | .n6 => 32 | .n7 => 33 | .n8 => 34 | .n9 => 35
+  | .grave => 36 | .minus => 37 | .equal => 38 | .lbracket => 39
+  | .rbracket => 40 | .backslash => 41 | .semicolon => 42
+  | .apostrophe => 43 | .comma => 44 | .period => 45 | .slash => 46
+  | .lshift => 47 | .rshift => 48 | .lctrl => 49 | .rctrl => 50
+  | .lalt => 51 | .ralt => 52 | .lsuper => 53 | .rsuper => 54
+  | .tab => 55 | .caps => 56 | .enter => 57 | .backspace => 58
+  | .space => 59 | .menu => 60
+  | .escape => 61 | .insert => 62 | .delete => 63
+  | .home => 64 | .end_ => 65 | .pageUp => 66 | .pageDown => 67
+  | .up => 68 | .down => 69 | .left => 70 | .right => 71
+  | .f1 => 72 | .f2 => 73 | .f3 => 74 | .f4 => 75
+  | .f5 => 76 | .f6 => 77 | .f7 => 78 | .f8 => 79
+  | .f9 => 80 | .f10 => 81 | .f11 => 82 | .f12 => 83
+
+set_option maxHeartbeats 800000 in
+public theorem KeyId.toNat_injective : Function.Injective KeyId.toNat := by
+  intro a b h; cases a <;> cases b <;> first | rfl | (simp only [KeyId.toNat] at h; omega)
+
+public instance : LinearOrder KeyId :=
+  LinearOrder.lift' KeyId.toNat KeyId.toNat_injective
+
 /-- A key on the keyboard. -/
 public structure Key where
   id : KeyId
   position : Position
   width : Rat  -- physical width in mm
   deriving DecidableEq, Repr, BEq, Hashable
+
+/-- Lexicographic ordering on keys by (y, x) then (width, id). -/
+public def keyOrd (k : Key) : (Rat ×ₗ Rat) ×ₗ (Rat ×ₗ KeyId) :=
+  toLex (toLex (k.position.y, k.position.x), toLex (k.width, k.id))
+
+public theorem keyOrd_injective : Function.Injective keyOrd := by
+  intro ⟨id1, ⟨x1, y1⟩, w1⟩ ⟨id2, ⟨x2, y2⟩, w2⟩ h
+  simp only [keyOrd] at h
+  obtain ⟨hpos, hrest⟩ := Prod.ext_iff.mp h
+  obtain ⟨hy, hx⟩ := Prod.ext_iff.mp hpos
+  obtain ⟨hw, hid⟩ := Prod.ext_iff.mp hrest
+  subst hy; subst hx; subst hw; subst hid; rfl
+
+public instance : LinearOrder Key :=
+  LinearOrder.lift' keyOrd keyOrd_injective
 
 /-- A keyboard, defined as a set of keys. -/
 public structure Keyboard where
@@ -77,16 +125,6 @@ private def KeyId.label : KeyId → String
   | .f1 => "f1" | .f2 => "f2" | .f3 => "f3" | .f4 => "f4"
   | .f5 => "f5" | .f6 => "f6" | .f7 => "f7" | .f8 => "f8"
   | .f9 => "f9" | .f10 => "f10" | .f11 => "f11" | .f12 => "f12"
-
-/-- Extract the underlying key list from a Finset (unsafe but fine for display). -/
-private unsafe def unsafeKeyList (kb : Keyboard) : List Key :=
-  unsafeCast kb.keys.val
-
-/-- Sort keys by row (y) then column (x). -/
-private def sortKeys (keys : List Key) : List Key :=
-  keys.mergeSort fun a b =>
-    if a.position.y != b.position.y then decide (a.position.y < b.position.y)
-    else decide (a.position.x < b.position.x)
 
 /-- Group a sorted key list into rows (keys sharing the same y coordinate). -/
 private def groupRows (keys : List Key) : List (List Key) :=
@@ -125,21 +163,19 @@ private def renderRow (row : List Key) (charWidth : Nat) : String × String :=
   (border, content)
 
 /-- Render a keyboard as ASCII art. -/
-private unsafe def reprKeyboardImpl (kb : Keyboard) : String :=
-  let keys := sortKeys (unsafeKeyList kb)
+public def reprKeyboard (kb : Keyboard) : String :=
+  let keys := kb.keys.sort
   let rows := groupRows keys
   let charWidth := 5  -- characters per 1u
   let lines := rows.flatMap fun row =>
     let (border, content) := renderRow row charWidth
     [border, content]
-  let lastRow := rows.getLast!
-  let lastBorder := (renderRow lastRow charWidth).1
-  let bottom := lastBorder.map fun c => if c == ',' || c == '.' then '\'' else c
-  String.intercalate "\n" (lines ++ [bottom])
-
-@[implemented_by reprKeyboardImpl]
-public def reprKeyboard (kb : Keyboard) : String :=
-  "Keyboard { ... }"
+  match rows.getLast? with
+  | some lastRow =>
+    let lastBorder := (renderRow lastRow charWidth).1
+    let bottom := lastBorder.map fun c => if c == ',' || c == '.' then '\'' else c
+    String.intercalate "\n" (lines ++ [bottom])
+  | none => ""
 
 public instance : Repr Keyboard where
   reprPrec kb _ := reprKeyboard kb
@@ -183,3 +219,24 @@ public def ANSI : Keyboard where
     -- Bottom
     [(.lctrl,5/4), (.lsuper,5/4), (.lalt,5/4), (.space,25/4), (.ralt,5/4), (.rsuper,5/4), (.menu,5/4), (.rctrl,5/4)]
   ]), by native_decide⟩
+
+def foo := let a := Nat; fun x : a => x + 2
+def bar : Nat → Nat := fun x => x + 2
+
+/-- All larger projects are a political place;
+    if you can't play the politics, it doesn't matter whether you are right or wrong. -/
+theorem office_politics
+    (Project Person : Type)
+    (isLarger isPolitical : Project → Prop)
+    (canPlayPolitics : Person → Project → Prop)
+    (correctnessMatters : Person → Project → Prop)
+    (larger_projects_are_political : ∀ p, isLarger p → isPolitical p)
+    (politics_trumps_correctness : ∀ person project,
+      isPolitical project → ¬canPlayPolitics person project → ¬correctnessMatters person project)
+    (project : Project) (person : Person)
+    (hLarger : isLarger project)
+    (hCantPlay : ¬canPlayPolitics person project)
+    : ¬correctnessMatters person project :=
+  politics_trumps_correctness person project
+    (larger_projects_are_political project hLarger)
+    hCantPlay
