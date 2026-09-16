@@ -1,5 +1,6 @@
 module
-public import Fern.Ortholinear
+public import Fern.Ortholinear.Classify
+public import Fern.Ortholinear.Swap
 import Mathlib.Logic.Equiv.Prod
 
 /-! Checked examples and counterexamples for the ortholinear model. -/
@@ -105,5 +106,178 @@ theorem thirty_used_naturals : naturalKeycodes.usedKeys.card = 30 :=
   naturalKeycodes.usedKeys_card
 
 theorem ninety_six_sfbs : naturalKeycodes.sfbs.card = 96 := naturalKeycodes.sfbs_card
+
+/-! ## Lookup on an infinite ambient keycode type
+
+`naturalKeycodes` labels the grid with natural numbers, so most keycodes are unused. -/
+
+theorem positionOf_present : naturalKeycodes.positionOf 13 = some (1, 3) := by decide
+
+theorem positionOf_missing : naturalKeycodes.positionOf 100 = none := by decide
+
+theorem hundred_unused : (100 : Nat) ∉ naturalKeycodes.usedKeys := by decide
+
+theorem missing_key_has_no_partners : naturalKeycodes.outgoing 100 = ∅ :=
+  naturalKeycodes.outgoing_eq_empty hundred_unused
+
+theorem used_key_position : (naturalKeycodes.atPosition (1, 3)).position = (1, 3) := by decide
+
+/-! ## Same-finger partner counts -/
+
+theorem simple_column_key_has_two_partners :
+    (naturalKeycodes.outgoing (naturalKeycodes.atPosition (0, 0)).val).card = 2 :=
+  naturalKeycodes.card_outgoing_simple _ (by decide)
+
+theorem index_column_key_has_five_partners :
+    (naturalKeycodes.outgoing (naturalKeycodes.atPosition (0, 3)).val).card = 5 :=
+  naturalKeycodes.card_outgoing_index _ (by decide)
+
+/-! ## All four bigram categories -/
+
+theorem kind_repeated : positionKind (0, 0) (0, 0) = .repeated := by decide
+theorem kind_sameFinger : positionKind (0, 0) (1, 0) = .sameFinger := by decide
+theorem kind_sameHand : positionKind (0, 0) (1, 1) = .sameHandDifferentFinger := by decide
+theorem kind_oppositeHands : positionKind (0, 0) (1, 9) = .oppositeHands := by decide
+
+theorem classify_repeated :
+    naturalKeycodes.classify (naturalKeycodes.atPosition (0, 0))
+      (naturalKeycodes.atPosition (0, 0)) = .repeated :=
+  (naturalKeycodes.classify_atPosition _ _).trans kind_repeated
+
+theorem classify_sameFinger :
+    naturalKeycodes.classify (naturalKeycodes.atPosition (0, 0))
+      (naturalKeycodes.atPosition (1, 0)) = .sameFinger :=
+  (naturalKeycodes.classify_atPosition _ _).trans kind_sameFinger
+
+theorem classify_sameHand :
+    naturalKeycodes.classify (naturalKeycodes.atPosition (0, 0))
+      (naturalKeycodes.atPosition (1, 1)) = .sameHandDifferentFinger :=
+  (naturalKeycodes.classify_atPosition _ _).trans kind_sameHand
+
+theorem classify_oppositeHands :
+    naturalKeycodes.classify (naturalKeycodes.atPosition (0, 0))
+      (naturalKeycodes.atPosition (1, 9)) = .oppositeHands :=
+  (naturalKeycodes.classify_atPosition _ _).trans kind_oppositeHands
+
+/-- The category counts hold over an infinite ambient keycode type too. -/
+theorem naturalKeycodes_category_counts :
+    Fintype.card {ab : UsedKey naturalKeycodes × UsedKey naturalKeycodes //
+        naturalKeycodes.classify ab.1 ab.2 = .sameHandDifferentFinger} = 324 :=
+  naturalKeycodes.card_sameHandDifferentFinger
+
+/-! ## Arbitrary rearrangement inside an index column -/
+
+/-- A six-cycle through both halves of the left index region. -/
+def leftIndexCycle : Equiv.Perm Position :=
+  Equiv.swap (0, 3) (0, 4) * Equiv.swap (0, 4) (1, 3) * Equiv.swap (1, 3) (1, 4) *
+    Equiv.swap (1, 4) (2, 3) * Equiv.swap (2, 3) (2, 4)
+
+theorem leftIndexCycle_mem : leftIndexCycle ∈ ColumnSymmetry := by
+  refine Subgroup.mul_mem _ (Subgroup.mul_mem _ (Subgroup.mul_mem _
+    (Subgroup.mul_mem _ ?_ ?_) ?_) ?_) ?_ <;>
+      exact swap_mem_columnSymmetry (by decide)
+
+/-- Relabelling the left index column by a six-cycle. -/
+def indexCycled : Layout Position := identityLayout.reindex leftIndexCycle
+
+theorem index_cycle_equivalent : identityLayout.Equivalent indexCycled :=
+  identityLayout.equivalent_reindex ⟨leftIndexCycle, leftIndexCycle_mem⟩
+
+theorem index_cycle_moves_keys : indexCycled.keyAt (0, 3) ≠ identityLayout.keyAt (0, 3) := by
+  decide
+
+/-! ## Exchanging whole columns across hands -/
+
+/-- Exchange the left and right pinky columns, all three rows at once. -/
+def pinkyColumnSwap : Equiv.Perm Position :=
+  Equiv.swap (0, 0) (0, 9) * Equiv.swap (1, 0) (1, 9) * Equiv.swap (2, 0) (2, 9)
+
+theorem pinkyColumnSwap_mem : pinkyColumnSwap ∈ ColumnSymmetry :=
+  mem_columnSymmetry_of_perm (Equiv.swap ColumnId.leftPinky ColumnId.rightPinky) (by decide)
+
+/-- The whole-column exchange across hands. -/
+def pinkiesSwapped : Layout Position := identityLayout.reindex pinkyColumnSwap
+
+theorem pinky_swap_equivalent : identityLayout.Equivalent pinkiesSwapped :=
+  identityLayout.equivalent_reindex ⟨pinkyColumnSwap, pinkyColumnSwap_mem⟩
+
+theorem pinky_swap_crosses_hands :
+    (columnAt ((0 : Fin 3), (0 : Fin 10)).2).hand ≠
+      (columnAt (pinkyColumnSwap ((0 : Fin 3), (0 : Fin 10))).2).hand := by decide
+
+/-! ## Swap sizes -/
+
+theorem swap_simple_simple :
+    (identityLayout.sfbsChanged (0, 0) (0, 1)).card = 16 :=
+  identityLayout.card_sfbsChanged_simple_simple (by decide) (by decide) (by decide)
+
+theorem swap_simple_index :
+    (identityLayout.sfbsChanged (0, 0) (0, 3)).card = 28 :=
+  identityLayout.card_sfbsChanged_simple_index (by decide) (by decide) (by decide)
+
+theorem swap_index_index :
+    (identityLayout.sfbsChanged (0, 3) (0, 5)).card = 40 :=
+  identityLayout.card_sfbsChanged_index_index (by decide) (by decide) (by decide)
+
+theorem swap_within_column :
+    (identityLayout.sfbsChanged (0, 0) (1, 0)).card = 0 :=
+  identityLayout.card_sfbsChanged_sameColumn (by decide)
+
+theorem swap_within_column_preserves :
+    identityLayout.Equivalent (identityLayout.swapPositions (0, 0) (1, 0)) :=
+  identityLayout.equivalent_swapPositions (by decide)
+
+theorem swap_across_columns_breaks :
+    ¬identityLayout.Equivalent (identityLayout.swapPositions (0, 0) (0, 1)) := by
+  rw [identityLayout.equivalent_swapPositions_iff]
+  decide
+
+/-! ## Every distinct pair of positions -/
+
+/-- Reading order index of a grid position. -/
+def posIndex (p : Position) : Nat := p.1.val * 10 + p.2.val
+
+/-- The 435 unordered pairs of distinct grid positions, listed once each.
+A `List` keeps the exhaustive checks below inside the kernel's budget. -/
+def distinctPositionPairs : List (Position × Position) :=
+  (allPositions.flatMap fun p => allPositions.map fun q => (p, q)).filter
+    fun pq => decide (posIndex pq.1 < posIndex pq.2)
+
+theorem length_distinctPositionPairs : distinctPositionPairs.length = 435 := by decide
+
+/-- The listing is exactly the pairs in reading order, so every unordered pair of distinct
+positions appears once. -/
+theorem mem_distinctPositionPairs (p q : Position) :
+    (p, q) ∈ distinctPositionPairs ↔ posIndex p < posIndex q := by
+  simp [distinctPositionPairs, mem_allPositions]
+
+set_option maxHeartbeats 1000000 in
+/-- Checked over every one of the 435 pairs: a swap changes nothing exactly when the two
+positions share a finger column, and otherwise changes 16, 28 or 40 ordered bigrams. -/
+theorem swaps_exhaustive :
+    ∀ pq ∈ distinctPositionPairs,
+      (changedCount pq.1 pq.2 = 0 ↔ colOf pq.1 = colOf pq.2) ∧
+        (changedCount pq.1 pq.2 = 0 ∨ changedCount pq.1 pq.2 = 16 ∨
+          changedCount pq.1 pq.2 = 28 ∨ changedCount pq.1 pq.2 = 40) := by decide
+
+theorem changedCount_exhaustive (pq : Position × Position) (h : pq ∈ distinctPositionPairs) :
+    changedCount pq.1 pq.2 = 0 ∨ changedCount pq.1 pq.2 = 16 ∨
+      changedCount pq.1 pq.2 = 28 ∨ changedCount pq.1 pq.2 = 40 :=
+  (swaps_exhaustive pq h).2
+
+theorem swap_preserves_iff_exhaustive (pq : Position × Position)
+    (h : pq ∈ distinctPositionPairs) :
+    changedCount pq.1 pq.2 = 0 ↔ colOf pq.1 = colOf pq.2 :=
+  (swaps_exhaustive pq h).1
+
+/-- Hence for every layout and every one of the 435 pairs, a swap changes 0, 16, 28 or 40
+ordered same-finger bigrams. -/
+theorem swap_sizes_exhaustive {Keycode : Type} [DecidableEq Keycode] (L : Layout Keycode) :
+    ∀ pq ∈ distinctPositionPairs,
+      (L.sfbsChanged pq.1 pq.2).card = 0 ∨ (L.sfbsChanged pq.1 pq.2).card = 16 ∨
+        (L.sfbsChanged pq.1 pq.2).card = 28 ∨ (L.sfbsChanged pq.1 pq.2).card = 40 := by
+  intro pq hpq
+  rw [L.card_sfbsChanged_eq]
+  exact changedCount_exhaustive pq hpq
 
 end Fern.Ortholinear.Examples
