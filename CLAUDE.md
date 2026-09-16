@@ -35,9 +35,10 @@ changes the surface syntax in ways that will not match most Lean code you have s
   does nothing but `public import` each module). A plain `import` is private to that file — e.g.
   `import Mathlib.Logic.Equiv.Prod` in `Fern/OrtholinearExamples.lean`.
 - Declarations are private by default. Two styles coexist, both valid:
-  - `Fern/Model.lean` and `Fern/Ngram.lean` annotate each declaration `public` or `private`.
-  - `Fern/Ortholinear.lean` and `Fern/OrtholinearExamples.lean` open an `@[expose] public section`
-    after the imports, so everything below it is public *and* definitionally transparent.
+  - `Fern/Model.lean` annotates each declaration `public` or `private`.
+  - `Fern/Ngram.lean`, `Fern/Ortholinear.lean`, the `Fern/Ortholinear/` modules and
+    `Fern/OrtholinearExamples.lean` open an `@[expose] public section` after the imports, so
+    everything below it is public *and* definitionally transparent.
 
 `@[expose]` is load-bearing, not decoration. Dropping it from `Fern/Ortholinear.lean` breaks that
 file's own build: `Layout.equivalent_refl` stops closing by `rfl` and the `Decidable (IsSFB L b)`
@@ -131,10 +132,30 @@ states the intent explicitly: closed finite computations go through the kernel, 
 `native_decide`. Keep it that way when adding examples; `native_decide` is reserved for the
 `Finset` nodup obligations in `Fern/Model.lean`.
 
-**`Fern/Ngram.lean`** is standalone character-list plumbing (`unigrams`, `bigrams`, `trigrams`,
-`skipgrams`, `trills` — `trills` detects ABA alternation). It is *not* wired to
-`Ortholinear.Bigram`; connecting corpus n-grams to the layout model is unfinished work.
-**`Fern/Frequency.lean`** is a stub (imports `Batteries`, opens `Std.HashMap`, nothing else).
+**N-grams — `Fern/Ngram.lean`.** The generic extractors live under `Fern.Ngram` and are defined
+by `zip` (`bigrams l := l.zip l.tail`), so their cons equations hold by `rfl` and core's `zip`
+lemmas apply. They are the single implementation. The top-level `unigrams`, `bigrams`,
+`trigrams`, `skipgrams` and `trills` are `Char` wrappers rendering windows as strings; private
+verbatim copies of their original recursions (`*Spec`) are proved equal, so any behaviour change
+fails the build. `trills` takes only `BEq`, matching the original `==`, and reports the `AB` of
+an `ABA`. The file needs `@[expose]`: `public` alone would export the names but not their
+unfolding, and downstream `rfl`/`decide` over `Ngram.bigrams` would fail.
+
+**Corpus metrics — `Fern/Ortholinear/Corpus.lean`.** `Corpus Keycode` is `List Keycode`, a
+keystroke stream independent of any layout. Each count exists at two levels, over an explicit
+list of bigrams (`sfbCountIn`, `kindCountIn`, …) where the inductions run, and over a corpus.
+`Layout.equivalent_iff_sfbCount_eq` is the headline: the backward direction instantiates the
+corpus at `[a, b]`, where `sfbCount_pair` makes the count an indicator of `IsSFB`. `classify?`
+classifies raw keycodes through `positionOf` and `positionKind`, returning `none` for keycodes
+the layout lacks, so the five-way partition (`kindCount_add_unmappedCount`) holds with no side
+condition; `Layout.Supports` is only a hypothesis for the four-way corollary. The hand split is
+**not** equivalence-invariant, by design. The swap bound is stated as two additive `Nat`
+inequalities plus a `ℤ` absolute value, never with `Nat` subtraction, and `Touches` orders its
+disjuncts to match `Layout.mem_sfbsChanged_touches` exactly. `Keymap.corpus` drops unmapped
+characters, which joins their neighbours; that non-commutation is intended and documented.
+
+**`Fern/Frequency.lean`** is reserved for frequency *weighting* (rates, weighted costs) and
+declares nothing yet.
 
 ## Two traps that cost real time
 
@@ -180,4 +201,7 @@ output — check `lake build fern-exe` output, not `lake build`.
   `positionSFBs` for each of the 435 position pairs takes about nine minutes, while the
   `List`-based check in `Fern/OrtholinearExamples.lean` takes seconds. Prefer `List` for
   anything quantified over many cases, and prove the expensive statement structurally instead.
-  That file is the slowest in the build at roughly 30s; the rest are a few seconds each.
+  That file is the slowest in the build at roughly 37s; the rest are a few seconds each.
+- A concrete `sfbCount` should be computed as `rw [← Layout.kindCount_sameFinger]; decide`.
+  `kindCount` classifies through `positionOf`, a 30-element list search, while `sfbCount`
+  decides `IsSFB`, which rebuilds the `Layout.sfbs` `Finset` for every bigram.

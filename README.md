@@ -11,9 +11,10 @@ text statistics combine to describe typing patterns and compare layouts.
 - `Fern.Model`: hands, fingers, key identifiers, physical positions and widths,
   keyboard geometry, and ASCII rendering. Includes 3×10 ortholinear and ANSI
   keyboard examples, with proofs supporting key ordering.
-- `Fern.Ngram`: extraction of unigrams, bigrams, trigrams, skipgrams, and
-  character-based trill patterns.
-- `Fern.Frequency`: a placeholder for corpus frequency analysis.
+- `Fern.Ngram`: extraction of unigrams, bigrams, trigrams, skipgrams, and trill
+  patterns. The generic forms under `Fern.Ngram` work on any list, including a
+  stream of keycodes; the top-level `Char` versions render them as strings.
+- `Fern.Frequency`: reserved for frequency weighting, which is not yet formalized.
 - `Fern.Ortholinear`: a formal 3×10 grid model with unique keycodes, finger
   columns, mirrored hand assignments, inner index regions, ordered same-finger
   bigrams (SFBs), and layout equivalence by column membership.
@@ -26,6 +27,8 @@ text statistics combine to describe typing patterns and compare layouts.
   symmetry group, and the exact count of layouts and equivalence classes.
 - `Fern.Ortholinear.Swap`: single swaps, and exactly how many same-finger
   bigrams they change.
+- `Fern.Ortholinear.Corpus`: measuring a layout against a keystroke stream, and
+  reading text into one through a keymap.
 - `Fern.OrtholinearExamples`: checked examples of equivalent rearrangements
   and a counterexample where exchanging individual keys changes the SFB set.
 
@@ -83,9 +86,33 @@ the same number appear, so the symmetric difference has `4 (m + n - 2)` members:
 index columns. Every changed bigram contains one of the two swapped keycodes.
 All 435 distinct position pairs are checked.
 
-Keycodes are generic and need not be characters. Corpus frequency analysis and
-frequency-weighted ergonomic metrics remain to be formalized. The existing
-physical keyboard renderer and character n-gram functions are separate APIs.
+## Measuring a corpus
+
+Everything above is structural: every layout has the same 96 possible SFBs. A
+corpus is where layouts differ. `Corpus Keycode` is a keystroke stream that does
+not depend on any layout, so two layouts can be measured on the same text.
+`Layout.sfbCount` counts the same-finger bigrams in it, and `Layout.kindCount`
+splits its bigrams into the four categories, with `Layout.unmappedCount` for
+bigrams using a keycode the layout lacks. Those five counts always sum to the
+number of bigrams.
+
+Corpus counts see exactly layout equivalence: two layouts are equivalent if and
+only if they give the same same-finger bigram count on every corpus, and
+two-keystroke corpora already suffice. The hand split is different, because
+equivalence forgets hand; the examples include two equivalent layouts that
+disagree on opposite-hand bigrams for the same text.
+
+One swap moves the same-finger bigram count by at most the number of corpus
+bigrams involving the two swapped keycodes, so a swap of keys the text never
+uses changes nothing.
+
+A `Keymap` reads text into a corpus, dropping unmapped characters. Their
+neighbours then become adjacent, so reading text does not commute with n-gram
+extraction; this is intended, and an example records it.
+
+Keycodes are generic and need not be characters. Frequency *weighting* (rates
+and weighted ergonomic costs) remains to be formalized. The physical keyboard
+renderer is still a separate API.
 
 ## Build and run
 
@@ -123,4 +150,9 @@ open Fern.Ortholinear
 #check card_layoutOn
 #check card_layoutClass
 #check Layout.card_sfbsChanged
+
+#check Fern.Ngram.bigrams
+#check Layout.equivalent_iff_sfbCount_eq
+#check Layout.kindCount_add_unmappedCount
+#check Layout.abs_sfbCount_sub_swap_le
 ```
