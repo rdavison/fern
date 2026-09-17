@@ -12,6 +12,7 @@ public import Fern.Ortholinear.Swap
 public import Fern.Ortholinear.Corpus
 public import Fern.Ortholinear.Pieces
 public import Fern.Ortholinear.Text
+public import Fern.Ortholinear.Hands
 public import Fern.Solver.Proof.Table
 public import Fern.Solver.Proof.Bits
 public import Fern.Solver.Spec
@@ -23,4 +24,5 @@ public import Fern.Solver.Proof.Scan
 public import Fern.Solver.Theorem
 public import Fern.Solver.Keys
 public import Fern.Solver.Certificate
+public import Fern.Solver.TieBreak
 public import Fern.OrtholinearExamples

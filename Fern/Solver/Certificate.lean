@@ -55,12 +55,12 @@ theorem toFinset_filter_length {P : List (List (Fin 30))} (hnd : ∀ l ∈ P, l.
   · rintro ⟨l, ⟨hl, hk⟩, rfl⟩
     exact ⟨⟨l, hl, rfl⟩, by rw [List.toFinset_card_of_nodup (hnd l hl), hk]⟩
 
-/-- A successful check is a layout whose same-finger weight is exactly the reported value. -/
-theorem checkPieces_sound {w : Fin 30 → Fin 30 → ℕ} {P : List (List (Fin 30))} {n : ℕ}
-    (h : checkPieces w P n = true) : ∃ L : LayoutOn fullRepertoire, L.val.sfbWeight w = n := by
-  simp only [checkPieces, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq, List.all_eq_true,
-    Bool.or_eq_true] at h
-  obtain ⟨⟨⟨⟨⟨hflat, hlen⟩, hall⟩, h3⟩, h6⟩, hsum⟩ := h
+/-- Lists that use every key once, six of three keys and two of six, are a piece-set of all thirty
+keys, and distinct lists give distinct pieces. -/
+theorem isPieceSet_of_lists {P : List (List (Fin 30))} (hflat : P.flatten.Nodup)
+    (hlen : P.flatten.length = 30) (hall : ∀ p ∈ P, p.length = 3 ∨ p.length = 6)
+    (h3 : (P.filter (·.length == 3)).length = 6) (h6 : (P.filter (·.length == 6)).length = 2) :
+    IsPieceSet (univ : Finset (Fin 30)) (P.map List.toFinset).toFinset ∧ (P.map List.toFinset).Nodup := by
   obtain ⟨hnd, hpw⟩ := List.nodup_flatten.mp hflat
   have hne : ∀ l ∈ P, l ≠ [] := fun l hl he => by
     rcases hall l hl with h | h <;> simp [he] at h
@@ -78,31 +78,38 @@ theorem checkPieces_sound {w : Fin 30 → Fin 30 → ℕ} {P : List (List (Fin 3
   have hcount : ∀ k, (Q.filter (·.card = k)).card = (P.filter (·.length == k)).length := fun k => by
     rw [toFinset_filter_length hnd, List.toFinset_card_of_nodup
       (hmapnd.sublist ((List.filter_sublist).map _)), List.length_map]
-  have hP : IsPieceSet (univ : Finset (Fin 30)) Q := by
-    refine ⟨fun p hp q hq hpq => ?_, ?_, fun q hq => ?_, by rw [hcount]; exact h3,
-      by rw [hcount]; exact h6⟩
-    · obtain ⟨l₁, hl₁, rfl⟩ := (hmemQ p).mp hp
-      obtain ⟨l₂, hl₂, rfl⟩ := (hmemQ q).mp hq
-      have hl : l₁ ≠ l₂ := fun he => hpq (by rw [he])
-      exact List.disjoint_toFinset_iff_disjoint.mpr
-        (hpw.forall (fun _ _ h => h.symm) hl₁ hl₂ hl)
-    · have hcard : P.flatten.toFinset.card = 30 := by
-        rw [List.toFinset_card_of_nodup hflat, hlen]
-      have huniv : P.flatten.toFinset = univ :=
-        Finset.eq_univ_of_card _ (by rw [hcard, Fintype.card_fin])
-      rw [← huniv]
-      ext x
-      simp only [Finset.mem_biUnion, id, List.mem_toFinset, List.mem_flatten, hmemQ]
-      constructor
-      · rintro ⟨_, ⟨l, hl, rfl⟩, hx⟩
-        exact ⟨l, hl, List.mem_toFinset.mp hx⟩
-      · rintro ⟨l, hl, hx⟩
-        exact ⟨l.toFinset, ⟨l, hl, rfl⟩, List.mem_toFinset.mpr hx⟩
-    · obtain ⟨l, hl, rfl⟩ := (hmemQ q).mp hq
-      rw [List.toFinset_card_of_nodup (hnd l hl)]
-      exact hall l hl
-  have hcost : pieceCost w Q = n := by
-    rw [pieceCost, hQ, List.sum_toFinset _ hmapnd, List.map_map, ← hsum]
+  refine ⟨⟨fun p hp q hq hpq => ?_, ?_, fun q hq => ?_, by rw [hcount]; exact h3,
+    by rw [hcount]; exact h6⟩, hmapnd⟩
+  · obtain ⟨l₁, hl₁, rfl⟩ := (hmemQ p).mp hp
+    obtain ⟨l₂, hl₂, rfl⟩ := (hmemQ q).mp hq
+    have hl : l₁ ≠ l₂ := fun he => hpq (by rw [he])
+    exact List.disjoint_toFinset_iff_disjoint.mpr (hpw.forall (fun _ _ h => h.symm) hl₁ hl₂ hl)
+  · have hcard : P.flatten.toFinset.card = 30 := by
+      rw [List.toFinset_card_of_nodup hflat, hlen]
+    have huniv : P.flatten.toFinset = univ :=
+      Finset.eq_univ_of_card _ (by rw [hcard, Fintype.card_fin])
+    rw [← huniv]
+    ext x
+    simp only [Finset.mem_biUnion, id, List.mem_toFinset, List.mem_flatten, hmemQ]
+    constructor
+    · rintro ⟨_, ⟨l, hl, rfl⟩, hx⟩
+      exact ⟨l, hl, List.mem_toFinset.mp hx⟩
+    · rintro ⟨l, hl, hx⟩
+      exact ⟨l.toFinset, ⟨l, hl, rfl⟩, List.mem_toFinset.mpr hx⟩
+  · obtain ⟨l, hl, rfl⟩ := (hmemQ q).mp hq
+    rw [List.toFinset_card_of_nodup (hnd l hl)]
+    exact hall l hl
+
+/-- A successful check is a layout whose same-finger weight is exactly the reported value. -/
+theorem checkPieces_sound {w : Fin 30 → Fin 30 → ℕ} {P : List (List (Fin 30))} {n : ℕ}
+    (h : checkPieces w P n = true) : ∃ L : LayoutOn fullRepertoire, L.val.sfbWeight w = n := by
+  simp only [checkPieces, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq, List.all_eq_true,
+    Bool.or_eq_true] at h
+  obtain ⟨⟨⟨⟨⟨hflat, hlen⟩, hall⟩, h3⟩, h6⟩, hsum⟩ := h
+  obtain ⟨hP, hmapnd⟩ := isPieceSet_of_lists hflat hlen hall h3 h6
+  have hnd := (List.nodup_flatten.mp hflat).1
+  have hcost : pieceCost w (P.map List.toFinset).toFinset = n := by
+    rw [pieceCost, List.sum_toFinset _ hmapnd, List.map_map, ← hsum]
     exact congrArg List.sum (List.map_congr_left fun l hl => (listPieceWeight_eq w (hnd l hl)).symm)
   obtain ⟨L, hL⟩ := exists_layoutOn_columns_eq fullRepertoire hP
   exact ⟨L, by rw [Layout.sfbWeight_eq_pieceCost, hL, hcost]⟩

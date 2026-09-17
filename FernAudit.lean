@@ -190,3 +190,35 @@ a default target, so `lake build` enforces it.
 /-- info: 'Fern.Solver.checkPieces_sound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Fern.Solver.checkPieces_sound
+
+/-- info: 'Fern.Ortholinear.exists_layoutOn_placement' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.exists_layoutOn_placement
+
+/-- info: 'Fern.Ortholinear.card_handSides' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.card_handSides
+
+/-- info: 'Fern.Ortholinear.LayoutOn.sameHandWeight_mem' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.LayoutOn.sameHandWeight_mem
+
+/-- info: 'Fern.Ortholinear.exists_layoutOn_handKeys' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.exists_layoutOn_handKeys
+
+/-- info: 'Fern.Ortholinear.sameHandWeights_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.sameHandWeights_eq
+
+/-- info: 'Fern.Ortholinear.tieBreak_isLeast' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.tieBreak_isLeast
+
+/-- info: 'Fern.Solver.isPieceSet_of_lists' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.isPieceSet_of_lists
+
+/-- info: 'Fern.Solver.checkTieBreak_sound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.checkTieBreak_sound

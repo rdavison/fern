@@ -128,6 +128,13 @@ theorem ColumnKind.eq_index_of_ne_simple {k : ColumnKind} (h : k ≠ .simple) : 
   · exact absurd rfl h
   · rfl
 
+/-- Pieces placed on the finger columns: each column gets a piece of its size, and no piece twice. -/
+structure Placement (P : Finset (Finset K)) where
+  piece : ColumnId → Finset K
+  mem : ∀ c, piece c ∈ P
+  card : ∀ c, (piece c).card = 3 * c.kind.width
+  injective : Function.Injective piece
+
 section Realize
 
 variable {s : Finset K} {P : Finset (Finset K)} (hP : IsPieceSet s P)
@@ -186,63 +193,73 @@ theorem pieceOf_injective : Function.Injective (pieceOf hP) := by
     rw [dif_neg hc, dif_neg hd] at h
     exact congrArg Subtype.val ((indexPieceEquiv hP).injective (Subtype.ext h))
 
-theorem image_pieceOf : univ.image (pieceOf hP) = P := by
+/-- The placement matching the simple and index columns to the pieces arbitrarily. -/
+noncomputable def canonicalPlacement : Placement P :=
+  ⟨pieceOf hP, pieceOf_mem hP, card_pieceOf hP, pieceOf_injective hP⟩
+
+variable (pl : Placement P)
+
+/-- A placement uses every piece. -/
+theorem Placement.image_eq : univ.image pl.piece = P := by
   apply Finset.eq_of_subset_of_card_le
   · intro p hp
     obtain ⟨c, -, rfl⟩ := Finset.mem_image.mp hp
-    exact pieceOf_mem hP c
-  · rw [Finset.card_image_of_injective _ (pieceOf_injective hP), hP.card_eq_eight]
+    exact pl.mem c
+  · rw [Finset.card_image_of_injective _ pl.injective, hP.card_eq_eight]
     decide
 
 /-- Each column's positions, matched to the keys of its piece. -/
-noncomputable def fiberPieceEquiv (c : ColumnId) : Fiber c ≃ {k // k ∈ pieceOf hP c} :=
-  Fintype.equivOfCardEq (by rw [card_fiber, Fintype.card_coe, card_pieceOf])
+noncomputable def fiberPieceEquiv (c : ColumnId) : Fiber c ≃ {k // k ∈ pl.piece c} :=
+  Fintype.equivOfCardEq (by rw [card_fiber, Fintype.card_coe, pl.card])
 
 /-- The key placed at each position. -/
-noncomputable def realizeFun (p : Position) : K := (fiberPieceEquiv hP (colOf p) ⟨p, rfl⟩).val
+noncomputable def realizeFun (p : Position) : K := (fiberPieceEquiv pl (colOf p) ⟨p, rfl⟩).val
 
+omit [DecidableEq K] hP in
 theorem realizeFun_eq {c : ColumnId} (x : Fiber c) :
-    realizeFun hP x.val = (fiberPieceEquiv hP c x).val := by
+    realizeFun pl x.val = (fiberPieceEquiv pl c x).val := by
   obtain ⟨x, rfl⟩ := x
   rfl
 
-theorem realizeFun_mem (p : Position) : realizeFun hP p ∈ pieceOf hP (colOf p) :=
-  (fiberPieceEquiv hP (colOf p) ⟨p, rfl⟩).property
+omit [DecidableEq K] hP in
+theorem realizeFun_mem (p : Position) : realizeFun pl p ∈ pl.piece (colOf p) :=
+  (fiberPieceEquiv pl (colOf p) ⟨p, rfl⟩).property
 
-theorem realizeFun_injective : Function.Injective (realizeFun hP) := by
+theorem realizeFun_injective : Function.Injective (realizeFun pl) := by
   intro p q h
   have hcol : colOf p = colOf q := by
     by_contra hne
-    have hdisj := hP.disjoint (Finset.mem_coe.mpr (pieceOf_mem hP (colOf p)))
-      (Finset.mem_coe.mpr (pieceOf_mem hP (colOf q))) fun e => hne (pieceOf_injective hP e)
-    exact Finset.disjoint_left.mp hdisj (realizeFun_mem hP p) (by rw [h]; exact realizeFun_mem hP q)
-  have hval : (fiberPieceEquiv hP (colOf q) ⟨p, hcol⟩).val =
-      (fiberPieceEquiv hP (colOf q) ⟨q, rfl⟩).val := by
-    rw [← realizeFun_eq hP ⟨p, hcol⟩, ← realizeFun_eq hP ⟨q, rfl⟩]
+    have hdisj := hP.disjoint (Finset.mem_coe.mpr (pl.mem (colOf p)))
+      (Finset.mem_coe.mpr (pl.mem (colOf q))) fun e => hne (pl.injective e)
+    exact Finset.disjoint_left.mp hdisj (realizeFun_mem pl p)
+      (by rw [h]; exact realizeFun_mem pl q)
+  have hval : (fiberPieceEquiv pl (colOf q) ⟨p, hcol⟩).val =
+      (fiberPieceEquiv pl (colOf q) ⟨q, rfl⟩).val := by
+    rw [← realizeFun_eq pl ⟨p, hcol⟩, ← realizeFun_eq pl ⟨q, rfl⟩]
     exact h
-  exact congrArg Subtype.val ((fiberPieceEquiv hP (colOf q)).injective (Subtype.ext hval))
+  exact congrArg Subtype.val ((fiberPieceEquiv pl (colOf q)).injective (Subtype.ext hval))
 
 /-- The layout obtained by dropping every piece onto its column. -/
-noncomputable def realize : Layout K := ⟨realizeFun hP, realizeFun_injective hP⟩
+noncomputable def realize : Layout K := ⟨realizeFun pl, realizeFun_injective hP pl⟩
 
-theorem realize_columnKeys (c : ColumnId) : (realize hP).columnKeys c = pieceOf hP c := by
+theorem realize_columnKeys (c : ColumnId) : (realize hP pl).columnKeys c = pl.piece c := by
   apply Finset.eq_of_subset_of_card_le
   · intro k hk
     obtain ⟨p, hp, rfl⟩ := Finset.mem_image.mp hk
     have hc : colOf p = c := (mem_positions c p).mp hp
-    exact hc ▸ realizeFun_mem hP p
-  · rw [card_pieceOf, (realize hP).columnKeys_card]
+    exact hc ▸ realizeFun_mem pl p
+  · rw [pl.card, (realize hP pl).columnKeys_card]
 
-theorem realize_columns : (realize hP).columns = P := by
-  rw [Layout.columns, show (realize hP).columnKeys = pieceOf hP from funext (realize_columnKeys hP),
-    image_pieceOf hP]
+theorem realize_columns : (realize hP pl).columns = P := by
+  rw [Layout.columns, show (realize hP pl).columnKeys = pl.piece from funext (realize_columnKeys hP pl),
+    Placement.image_eq hP pl]
 
-theorem realize_usedKeys : (realize hP).usedKeys = s := by
-  rw [← (realize hP).columnKeys_cover,
-    show (realize hP).columnKeys = pieceOf hP from funext (realize_columnKeys hP)]
-  calc univ.biUnion (pieceOf hP) = (univ.image (pieceOf hP)).biUnion id := by
+theorem realize_usedKeys : (realize hP pl).usedKeys = s := by
+  rw [← (realize hP pl).columnKeys_cover,
+    show (realize hP pl).columnKeys = pl.piece from funext (realize_columnKeys hP pl)]
+  calc univ.biUnion pl.piece = (univ.image pl.piece).biUnion id := by
         rw [Finset.image_biUnion]; rfl
-    _ = P.biUnion id := by rw [image_pieceOf hP]
+    _ = P.biUnion id := by rw [Placement.image_eq hP pl]
     _ = s := hP.cover
 
 end Realize
@@ -250,7 +267,13 @@ end Realize
 /-- Every piece-set of a repertoire is the column structure of some layout on it. -/
 theorem exists_layoutOn_columns_eq (R : Repertoire K) {P : Finset (Finset K)}
     (hP : IsPieceSet R.keys P) : ∃ L : LayoutOn R, L.val.columns = P :=
-  ⟨⟨realize hP, realize_usedKeys hP⟩, realize_columns hP⟩
+  ⟨⟨realize hP (canonicalPlacement hP), realize_usedKeys hP _⟩, realize_columns hP _⟩
+
+/-- Every placement of the pieces on the finger columns is realised by a layout. -/
+theorem exists_layoutOn_placement (R : Repertoire K) {P : Finset (Finset K)}
+    (hP : IsPieceSet R.keys P) (pl : Placement P) :
+    ∃ L : LayoutOn R, ∀ c, L.val.columnKeys c = pl.piece c :=
+  ⟨⟨realize hP pl, realize_usedKeys hP pl⟩, realize_columnKeys hP pl⟩
 
 /-! ### Equivalence classes are piece-sets -/
 

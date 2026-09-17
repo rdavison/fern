@@ -23,6 +23,7 @@ lake build fern-solve  # the exact solver executable (Solve.lean)
 .lake/build/bin/fern-solve check TEXT TABLE.tsv         # compare a table with the text, all 900 entries
 .lake/build/bin/fern-solve solve TABLE.tsv > RESULT     # ~13 min, ~4.3 GB: optimum and pieces
 .lake/build/bin/fern-solve cert NAME TABLE.tsv RESULT > Fern/Solver/Data/NAME.lean
+.lake/build/bin/fern-solve tiecert NAME SPACEGRAMS.tsv RESULT > Fern/Solver/Data/NAMEHands.lean
 ```
 
 `solve` holds a 4 GiB table and reads it at random. On this 24 GB machine it ran at full speed only
