@@ -174,3 +174,19 @@ a default target, so `lake build` enforces it.
 /-- info: 'Fern.Solver.solveText_isLeast' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Fern.Solver.solveText_isLeast
+
+/-- info: 'Fern.Solver.bigramsOf_joinLines' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.bigramsOf_joinLines
+
+/-- info: 'Fern.Solver.countLines_spec' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.countLines_spec
+
+/-- info: 'Fern.Solver.listPieceWeight_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.listPieceWeight_eq
+
+/-- info: 'Fern.Solver.checkPieces_sound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.checkPieces_sound

@@ -15,6 +15,10 @@ weakLeanOptions = {"experimental.module" = true}
 name = "fern-exe"
 root = "Main"
 
+[[lean_exe]]
+name = "fern-solve"
+root = "Solve"
+
 [[lean_lib]]
 name = "FernImpl"
 precompileModules = true

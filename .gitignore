@@ -1,1 +1,3 @@
 /.lake
+# Source corpora are third-party text: only derived count tables are committed.
+/data/*.txt

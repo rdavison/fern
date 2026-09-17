@@ -18,7 +18,15 @@ lake build Fern.Ortholinear   # build one module and its deps
 lake build fern-exe    # native build; `lake build` alone leaves the binary stale
 lake exe fern-exe      # prints Ortho3x10 and ANSI as ASCII art
 lake env lean Fern/Ortholinear.lean   # elaborate one file directly, ~10s; fastest edit loop
+lake build fern-solve  # the exact solver executable (Solve.lean)
+.lake/build/bin/fern-solve count TEXT > TABLE.tsv       # 900-entry bigram table (--skipgrams, --spacegrams)
+.lake/build/bin/fern-solve check TEXT TABLE.tsv         # compare a table with the text, all 900 entries
+.lake/build/bin/fern-solve solve TABLE.tsv > RESULT     # ~13 min, ~4.3 GB: optimum and pieces
+.lake/build/bin/fern-solve cert NAME TABLE.tsv RESULT > Fern/Solver/Data/NAME.lean
 ```
+
+`solve` holds a 4 GiB table and reads it at random. On this 24 GB machine it ran at full speed only
+with a few GB free. When the system compressor holds most of that table, the search slows to a crawl.
 
 `lean-toolchain` pins `leanprover/lean4:v4.29.0-rc4` and elan selects it automatically.
 mathlib is required at `rev = "master"` in `lakefile.toml` but resolved to a fixed commit in
@@ -171,6 +179,13 @@ by accident:
 - **`FernAudit`** pins each headline theorem's axioms with `#guard_msgs in #print axioms`. It is a
   separate **non-module** library because `#print axioms` is rejected inside a `module` file, and it
   is a default target so `lake build` enforces it.
+
+Mark only the higher-order loops (`foldBits`, `scanWith`) `@[specialize]`. A first-order definition
+marked `@[specialize]` (`step` and `rowSum` once were) is kept as a template: its own compiled body
+calls the generic loop through boxed closures, which made the table fill several times slower. After
+changing `FernImpl`, grep `.lake/build/ir/FernImpl/Solve.c` for `lean_alloc_closure` and
+`lean_apply`. Only the task-spawning lambdas and the unspecialized generic loop bodies should
+remain.
 
 CI greps `FernImpl` and `Fern/Solver` for `implemented_by`, `@[extern`, `unsafe`, `partial def`,
 `native_decide` and `bv_decide`: the axiom audit cannot see a definition whose compiled code differs

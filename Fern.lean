@@ -21,4 +21,6 @@ public import Fern.Solver.Proof.Fill
 public import Fern.Solver.Proof.Split
 public import Fern.Solver.Proof.Scan
 public import Fern.Solver.Theorem
+public import Fern.Solver.Keys
+public import Fern.Solver.Certificate
 public import Fern.OrtholinearExamples

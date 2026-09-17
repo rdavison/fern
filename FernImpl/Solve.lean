@@ -38,7 +38,7 @@ def swTable (cnt : Nat → Nat → Nat) : ByteArray :=
 
 /-- Cheapest partition of mask `m` into triples, reading smaller key sets from `t`. The highest key
 is placed with each possible pair. -/
-@[specialize] def step (sw t : @& ByteArray) (m : UInt64) : UInt64 :=
+def step (sw t : @& ByteArray) (m : UInt64) : UInt64 :=
   let a := hibit m
   let r := m ^^^ bit a
   foldBits (fun acc b =>
@@ -61,7 +61,7 @@ def fill (sw : @& ByteArray) : ByteArray :=
     if tabulated m then (step sw t m).toUInt32 else 0
 
 /-- Both directions of every pair between key `x` and the keys of `A`. -/
-@[specialize] def rowSum (sw : @& ByteArray) (x A : UInt64) : UInt64 :=
+def rowSum (sw : @& ByteArray) (x A : UInt64) : UInt64 :=
   foldBits (fun acc y => acc + sw32 sw x y) 30 A 0
 
 /-- Cheapest way to distribute the keys of `rest` so that block `A` gains `nA` of them and block `C`
