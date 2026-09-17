@@ -13,7 +13,7 @@ runs `leanprover/lean-action@v1`, which is just a build.
 
 ```sh
 lake exe cache get     # fetch prebuilt mathlib oleans — do this before the first build
-lake build             # build the Fern library (default target); the real "test suite"
+lake build             # builds Fern and FernAudit (default targets); the real "test suite"
 lake build Fern.Ortholinear   # build one module and its deps
 lake build fern-exe    # native build; `lake build` alone leaves the binary stale
 lake exe fern-exe      # prints Ortho3x10 and ANSI as ASCII art
@@ -157,6 +157,26 @@ characters, which joins their neighbours; that non-commutation is intended and d
 **`Fern/Frequency.lean`** is reserved for frequency *weighting* (rates, weighted costs) and
 declares nothing yet.
 
+## The exact solver's three libraries
+
+The fewest-same-finger-bigram solver is split across libraries for reasons that are easy to undo
+by accident:
+
+- **`FernImpl`** holds the executable code: packed tables and bit operations. It imports **no
+  Mathlib** and has `precompileModules = true`. Precompilation is required, not an optimisation:
+  `native_decide` over non-precompiled code runs in the interpreter, which measured **more than
+  63× slower** (a 3 s native computation had not finished after 300 s). Keep Mathlib out of it,
+  since precompiling Mathlib-dependent modules would need Mathlib as dynamic libraries.
+- **`Fern/Solver/Proof/*`** (in the `Fern` library) proves `FernImpl` correct, with Mathlib.
+- **`FernAudit`** pins each headline theorem's axioms with `#guard_msgs in #print axioms`. It is a
+  separate **non-module** library because `#print axioms` is rejected inside a `module` file, and it
+  is a default target so `lake build` enforces it.
+
+CI greps `FernImpl` and `Fern/Solver` for `implemented_by`, `@[extern`, `unsafe`, `partial def`,
+`native_decide` and `bv_decide`: the axiom audit cannot see a definition whose compiled code differs
+from its logical model. `bv_decide` is banned because it relies on native evaluation; `bv_omega` is
+fine. Write verified loops as structural recursion on a `Nat` fuel, not `for`/`mut`.
+
 ## Two traps that cost real time
 
 **Downstream of `Fern/Ortholinear.lean`, make `Layout.sfbs` and `positionSFBs` locally
@@ -173,7 +193,9 @@ end
 ```
 
 and uses the stated lemmas (`isSFB_iff`, `Layout.mem_sfbs`, `mem_positionSFBs`) instead of
-definitional unfolding. The attribute is local, so `decide`-based examples elsewhere still see
+definitional unfolding. The same applies to any exposed closed data, such as the 2^15-entry
+`hibTable` and `popTable` in `FernImpl.Bits`. `congr 1` on sums over a concrete `Finset.range`
+triggers it too; prove each side's equation separately and `rw` instead. The attribute is local, so `decide`-based examples elsewhere still see
 the definitions. Symptom: `(deterministic) timeout at 'whnf'` on a proof that looks trivial.
 
 **A `Fintype` instance on a closed type is executable code that runs at module

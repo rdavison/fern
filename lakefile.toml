@@ -1,6 +1,6 @@
 name = "fern"
 version = "0.1.0"
-defaultTargets = ["Fern"]
+defaultTargets = ["Fern", "FernAudit"]
 
 [[require]]
 name = "mathlib"
@@ -14,3 +14,11 @@ weakLeanOptions = {"experimental.module" = true}
 [[lean_exe]]
 name = "fern-exe"
 root = "Main"
+
+[[lean_lib]]
+name = "FernImpl"
+precompileModules = true
+weakLeanOptions = {"experimental.module" = true}
+
+[[lean_lib]]
+name = "FernAudit"
