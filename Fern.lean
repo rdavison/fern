@@ -14,4 +14,5 @@ public import Fern.Ortholinear.Pieces
 public import Fern.Ortholinear.Text
 public import Fern.Solver.Proof.Table
 public import Fern.Solver.Proof.Bits
+public import Fern.Solver.Spec
 public import Fern.OrtholinearExamples

@@ -102,3 +102,27 @@ a default target, so `lake build` enforces it.
 /-- info: 'Fern.Ortholinear.Layout.abs_sfbCountIn_sub_swap_le' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Fern.Ortholinear.Layout.abs_sfbCountIn_sub_swap_le
+
+/-- info: 'Fern.Solver.bestTriplesRef_isLeast' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.bestTriplesRef_isLeast
+
+/-- info: 'Fern.Solver.bestTriplesRef_step' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.bestTriplesRef_step
+
+/-- info: 'Fern.Solver.indexCostTop_le' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.indexCostTop_le
+
+/-- info: 'Fern.Solver.indexCostTop_achieved' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.indexCostTop_achieved
+
+/-- info: 'Fern.Solver.optimumRef_isLeast' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.optimumRef_isLeast
+
+/-- info: 'Fern.Solver.optimumRef_isLeast_layouts' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.optimumRef_isLeast_layouts
