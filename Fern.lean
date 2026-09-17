@@ -10,6 +10,7 @@ public import Fern.Ortholinear.Classify
 public import Fern.Ortholinear.Symmetry
 public import Fern.Ortholinear.Swap
 public import Fern.Ortholinear.Corpus
+public import Fern.Ortholinear.Pieces
 public import Fern.Solver.Proof.Table
 public import Fern.Solver.Proof.Bits
 public import Fern.OrtholinearExamples

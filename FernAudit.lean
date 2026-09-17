@@ -50,3 +50,31 @@ a default target, so `lake build` enforces it.
 /-- info: 'FernImpl.sum_bitsDesc' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms FernImpl.sum_bitsDesc
+
+/-- info: 'Fern.Ortholinear.Layout.sfbWeight_eq_pieceCost' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.Layout.sfbWeight_eq_pieceCost
+
+/-- info: 'Fern.Ortholinear.Layout.sfbCountIn_eq_sfbWeight' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.Layout.sfbCountIn_eq_sfbWeight
+
+/-- info: 'Fern.Ortholinear.pieceCost_split' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.pieceCost_split
+
+/-- info: 'Fern.Ortholinear.LayoutOn.columns_isPieceSet' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.LayoutOn.columns_isPieceSet
+
+/-- info: 'Fern.Ortholinear.exists_layoutOn_columns_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.exists_layoutOn_columns_eq
+
+/-- info: 'Fern.Ortholinear.layoutClassEquiv' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.layoutClassEquiv
+
+/-- info: 'Fern.Ortholinear.card_pieceSets' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.card_pieceSets
