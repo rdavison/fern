@@ -126,3 +126,51 @@ a default target, so `lake build` enforces it.
 /-- info: 'Fern.Solver.optimumRef_isLeast_layouts' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Fern.Solver.optimumRef_isLeast_layouts
+
+/-- info: 'FernImpl.sw32_swTable' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.sw32_swTable
+
+/-- info: 'FernImpl.rowSum_swTable' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.rowSum_swTable
+
+/-- info: 'FernImpl.step_spec' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.step_spec
+
+/-- info: 'FernImpl.fill_spec' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.fill_spec
+
+/-- info: 'FernImpl.splitMin_spec' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.splitMin_spec
+
+/-- info: 'FernImpl.indexCost_spec' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.indexCost_spec
+
+/-- info: 'FernImpl.scanRange_spec' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.scanRange_spec
+
+/-- info: 'FernImpl.solveValue_spec' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.solveValue_spec
+
+/-- info: 'FernImpl.inf_maskCost' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms FernImpl.inf_maskCost
+
+/-- info: 'Fern.Solver.solve_eq' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.solve_eq
+
+/-- info: 'Fern.Solver.solve_isLeast' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.solve_isLeast
+
+/-- info: 'Fern.Solver.solveText_isLeast' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.solveText_isLeast

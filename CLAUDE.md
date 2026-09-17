@@ -177,6 +177,18 @@ CI greps `FernImpl` and `Fern/Solver` for `implemented_by`, `@[extern`, `unsafe`
 from its logical model. `bv_decide` is banned because it relies on native evaluation; `bv_omega` is
 fine. Write verified loops as structural recursion on a `Nat` fuel, not `for`/`mut`.
 
+The solver proofs (`Fern/Solver/Proof/*`, headline theorems in `Fern/Solver/Theorem.lean`) hit
+three **kernel** traps. Elaboration succeeds and then `addDecl` reports `(kernel) deep recursion
+detected` or takes minutes; `set_option trace.profiler true` names the declaration.
+
+- A structurally recursive definition whose body reads the byte tables (`pop30`, `hibit`) cannot
+  have its equation lemmas checked. Keep the recursion generic in its step, as `scanWith` is for
+  `scanRange`.
+- A literal offset such as `c * 2 ^ 20 + 2 ^ 20` inside a lambda that the kernel must beta-compare
+  gets unfolded into successors. Take the constant as a variable (`inf_chunks` has `B`).
+- Rewriting at a concrete `List.range 1024`, or at `univ : Finset (Finset (Fin 30))`, is slow or
+  diverges. State the lemma for an arbitrary list or set and instantiate it once.
+
 ## Two traps that cost real time
 
 **Downstream of `Fern/Ortholinear.lean`, make `Layout.sfbs` and `positionSFBs` locally

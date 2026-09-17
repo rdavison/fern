@@ -15,4 +15,10 @@ public import Fern.Ortholinear.Text
 public import Fern.Solver.Proof.Table
 public import Fern.Solver.Proof.Bits
 public import Fern.Solver.Spec
+public import Fern.Solver.Proof.Weights
+public import Fern.Solver.Proof.Step
+public import Fern.Solver.Proof.Fill
+public import Fern.Solver.Proof.Split
+public import Fern.Solver.Proof.Scan
+public import Fern.Solver.Theorem
 public import Fern.OrtholinearExamples
