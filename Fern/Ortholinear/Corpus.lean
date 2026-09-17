@@ -269,11 +269,17 @@ theorem Layout.touches_of_isSFB_of_not_isSFB_swap (L : Layout Keycode) (p q : Po
     Touches (L.keyAt p) (L.keyAt q) b :=
   L.mem_sfbsChanged_touches (Finset.mem_union_left _ (Finset.mem_sdiff.mpr ⟨h, h'⟩))
 
-/-- A swap can remove at most as many same-finger bigrams as the corpus has bigrams involving
+theorem touchCountIn_comm (x y : Keycode) (bs : List (Bigram Keycode)) :
+    touchCountIn x y bs = touchCountIn y x bs :=
+  List.countP_congr fun b _ => by
+    simp only [decide_eq_true_eq, Touches]
+    tauto
+
+/-- A swap can remove at most as many same-finger bigrams from a list as it has bigrams involving
 the two swapped keycodes. -/
-theorem Layout.sfbCount_le_swap_add_touchCount (L : Layout Keycode) (p q : Position)
-    (c : Corpus Keycode) :
-    L.sfbCount c ≤ (L.swapPositions p q).sfbCount c + touchCount (L.keyAt p) (L.keyAt q) c :=
+theorem Layout.sfbCountIn_le_swap_add_touchCountIn (L : Layout Keycode) (p q : Position)
+    (bs : List (Bigram Keycode)) :
+    L.sfbCountIn bs ≤ (L.swapPositions p q).sfbCountIn bs + touchCountIn (L.keyAt p) (L.keyAt q) bs :=
   countP_le_add_of_imp _ fun b _ hb => by
     simp only [decide_eq_true_eq] at hb ⊢
     by_cases hM : IsSFB (L.swapPositions p q) b
@@ -281,14 +287,36 @@ theorem Layout.sfbCount_le_swap_add_touchCount (L : Layout Keycode) (p q : Posit
     · exact Or.inr (L.touches_of_isSFB_of_not_isSFB_swap p q hb hM)
 
 /-- …and add at most as many. -/
-theorem Layout.swap_sfbCount_le_add_touchCount (L : Layout Keycode) (p q : Position)
-    (c : Corpus Keycode) :
-    (L.swapPositions p q).sfbCount c ≤ L.sfbCount c + touchCount (L.keyAt p) (L.keyAt q) c := by
-  have h := (L.swapPositions p q).sfbCount_le_swap_add_touchCount p q c
+theorem Layout.swap_sfbCountIn_le_add_touchCountIn (L : Layout Keycode) (p q : Position)
+    (bs : List (Bigram Keycode)) :
+    (L.swapPositions p q).sfbCountIn bs ≤ L.sfbCountIn bs + touchCountIn (L.keyAt p) (L.keyAt q) bs := by
+  have h := (L.swapPositions p q).sfbCountIn_le_swap_add_touchCountIn p q bs
   rw [Layout.swapPositions_swapPositions, Layout.swapPositions_keyAt,
     Layout.swapPositions_keyAt, Equiv.swap_apply_left, Equiv.swap_apply_right,
-    touchCount_comm] at h
+    touchCountIn_comm] at h
   exact h
+
+theorem Layout.abs_sfbCountIn_sub_swap_le (L : Layout Keycode) (p q : Position)
+    (bs : List (Bigram Keycode)) :
+    |(L.sfbCountIn bs : ℤ) - ((L.swapPositions p q).sfbCountIn bs : ℤ)|
+      ≤ (touchCountIn (L.keyAt p) (L.keyAt q) bs : ℤ) := by
+  have h1 := L.sfbCountIn_le_swap_add_touchCountIn p q bs
+  have h2 := L.swap_sfbCountIn_le_add_touchCountIn p q bs
+  rw [abs_sub_le_iff]
+  exact ⟨by omega, by omega⟩
+
+/-- A swap can remove at most as many same-finger bigrams as the corpus has bigrams involving
+the two swapped keycodes. -/
+theorem Layout.sfbCount_le_swap_add_touchCount (L : Layout Keycode) (p q : Position)
+    (c : Corpus Keycode) :
+    L.sfbCount c ≤ (L.swapPositions p q).sfbCount c + touchCount (L.keyAt p) (L.keyAt q) c :=
+  L.sfbCountIn_le_swap_add_touchCountIn p q _
+
+/-- …and add at most as many. -/
+theorem Layout.swap_sfbCount_le_add_touchCount (L : Layout Keycode) (p q : Position)
+    (c : Corpus Keycode) :
+    (L.swapPositions p q).sfbCount c ≤ L.sfbCount c + touchCount (L.keyAt p) (L.keyAt q) c :=
+  L.swap_sfbCountIn_le_add_touchCountIn p q _
 
 /-- One swap moves the same-finger bigram count of a corpus by at most the number of bigrams
 involving the two swapped keycodes. -/

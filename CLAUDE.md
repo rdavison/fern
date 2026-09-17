@@ -223,7 +223,10 @@ output — check `lake build fern-exe` output, not `lake build`.
   `positionSFBs` for each of the 435 position pairs takes about nine minutes, while the
   `List`-based check in `Fern/OrtholinearExamples.lean` takes seconds. Prefer `List` for
   anything quantified over many cases, and prove the expensive statement structurally instead.
-  That file is the slowest in the build at roughly 37s; the rest are a few seconds each.
+  That file is the slowest in the build at roughly 38s; the rest are a few seconds each.
+- For a closed equality of lists or other data, prefer `rfl` to `decide`. `decide` evaluates a
+  `DecidableEq` instance and the kernel re-checks it; on the prose-reading examples `rfl` was
+  roughly ten times cheaper (under 1s against about 11s for eight examples).
 - A concrete `sfbCount` should be computed as `rw [← Layout.kindCount_sameFinger]; decide`.
   `kindCount` classifies through `positionOf`, a 30-element list search, while `sfbCount`
   decides `IsSFB`, which rebuilds the `Layout.sfbs` `Finset` for every bigram.

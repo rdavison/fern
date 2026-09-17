@@ -78,3 +78,27 @@ a default target, so `lake build` enforces it.
 /-- info: 'Fern.Ortholinear.card_pieceSets' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Fern.Ortholinear.card_pieceSets
+
+/-- info: 'Fern.Ortholinear.Keymap.bigramsOf_eq_flatMap' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.Keymap.bigramsOf_eq_flatMap
+
+/-- info: 'Fern.Ortholinear.Keymap.flatten_segments' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.Keymap.flatten_segments
+
+/-- info: 'Fern.Ortholinear.Keymap.mem_bigramsOf' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.Keymap.mem_bigramsOf
+
+/-- info: 'Fern.Ortholinear.Keymap.mem_spacegramsOf' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.Keymap.mem_spacegramsOf
+
+/-- info: 'Fern.Ortholinear.Layout.sfbCountIn_bigramsOf' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.Layout.sfbCountIn_bigramsOf
+
+/-- info: 'Fern.Ortholinear.Layout.abs_sfbCountIn_sub_swap_le' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Ortholinear.Layout.abs_sfbCountIn_sub_swap_le

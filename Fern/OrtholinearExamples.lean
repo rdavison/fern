@@ -2,6 +2,7 @@ module
 public import Fern.Ortholinear.Classify
 public import Fern.Ortholinear.Swap
 public import Fern.Ortholinear.Corpus
+public import Fern.Ortholinear.Text
 import Mathlib.Logic.Equiv.Prod
 
 /-! Checked examples and counterexamples for the ortholinear model. -/
@@ -374,5 +375,29 @@ theorem abcKeymap_mapsInto : abcKeymap.MapsInto naturalKeycodes.usedKeys := by
 
 theorem abc_text_is_supported (cs : List Char) : naturalKeycodes.Supports (abcKeymap.corpus cs) :=
   naturalKeycodes.supports_corpus abcKeymap_mapsInto cs
+
+/-! ## Reading prose
+
+`bigramsOf` reads the text's own bigrams, so an unmapped character breaks the stream instead of
+joining its neighbours the way `corpus` does. -/
+
+theorem bigramsOf_breaks_at_unmapped : abcKeymap.bigramsOf ['a', '?', 'b'] = [] := rfl
+
+theorem bigramsOf_breaks_at_space : abcKeymap.bigramsOf ['a', 'b', ' ', 'c'] = [(0, 10)] := rfl
+
+theorem segments_split_at_space : abcKeymap.segments ['a', 'b', ' ', 'c'] = [[0, 10], [1]] := rfl
+
+/-- A space between two keys makes a spacegram, not a skipgram. -/
+theorem space_makes_spacegram : abcKeymap.spacegramsOf ['a', ' ', 'b'] = [(0, 10)] := rfl
+
+theorem space_is_not_skipgram : abcKeymap.skipgramsOf ['a', ' ', 'b'] = [] := rfl
+
+/-- A key between two keys makes a skipgram, not a spacegram. -/
+theorem key_makes_skipgram : abcKeymap.skipgramsOf ['a', 'c', 'b'] = [(0, 10)] := rfl
+
+theorem key_is_not_spacegram : abcKeymap.spacegramsOf ['a', 'c', 'b'] = [] := rfl
+
+/-- A newline is not a space, so separate lines never form a spacegram. -/
+theorem newline_is_not_spacegram : abcKeymap.spacegramsOf ['a', '\n', 'b'] = [] := rfl
 
 end Fern.Ortholinear.Examples
