@@ -1,0 +1,23 @@
+# least same-finger weight: 6701
+value 6701
+piece 24 22 15 6 5 2
+piece 19 16 12 10 9 3
+piece 29 20 4
+piece 28 14 0
+piece 27 26 8
+piece 25 23 17
+piece 21 18 1
+piece 13 11 7
+# pieces achieving it (each piece is one finger), with their weights:
+#   ywpgfc	1486
+#   tqmkjd	370
+#   ;ue	1775
+#   'oa	881
+#   .,i	148
+#   zxr	6
+#   vsb	448
+#   nlh	1587
+# one layout with these pieces:
+#   ; ' . y w t q z v n
+#   u o , p g m k x s l
+#   e a i f c j d r b h

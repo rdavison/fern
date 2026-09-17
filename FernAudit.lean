@@ -222,3 +222,11 @@ a default target, so `lake build` enforces it.
 /-- info: 'Fern.Solver.checkTieBreak_sound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in
 #print axioms Fern.Solver.checkTieBreak_sound
+
+/-- info: 'Fern.Solver.Data.mr_upper' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.Data.mr_upper
+
+/-- info: 'Fern.Solver.Data.mr_sameHand' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms Fern.Solver.Data.mr_sameHand

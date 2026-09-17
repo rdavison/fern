@@ -25,4 +25,6 @@ public import Fern.Solver.Theorem
 public import Fern.Solver.Keys
 public import Fern.Solver.Certificate
 public import Fern.Solver.TieBreak
+public import Fern.Solver.Data.Mr
+public import Fern.Solver.Data.MrHands
 public import Fern.OrtholinearExamples

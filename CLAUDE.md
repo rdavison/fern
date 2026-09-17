@@ -163,10 +163,37 @@ inequalities plus a `ℤ` absolute value, never with `Nat` subtraction, and `Tou
 disjuncts to match `Layout.mem_sfbsChanged_touches` exactly. `Keymap.corpus` drops unmapped
 characters, which joins their neighbours; that non-commutation is intended and documented.
 
+**Pieces — `Fern/Ortholinear/Pieces.lean`.** A layout up to equivalence is a *piece-set*
+(`IsPieceSet`): six blocks of three keys and two of six. `layoutClassEquiv` identifies classes with
+piece-sets, and `Layout.sfbWeight_eq_pieceCost` makes the same-finger weight a per-piece sum.
+`Placement` is any size-matching injective assignment of pieces to finger columns, and `realize`
+builds the layout dropping them in (`exists_layoutOn_placement`); `canonicalPlacement` picks one
+arbitrarily for `exists_layoutOn_columns_eq`.
+
+**Text — `Fern/Ortholinear/Text.lean`.** `Keymap.bigramsOf` keeps a text's own adjacent pairs whose
+characters are both mapped, so unmapped characters (the space included) break bigrams, unlike
+`Keymap.corpus`. `skipgramsOf` and `spacegramsOf` take trigram outer pairs; only a literal `' '` is
+a spacegram middle.
+
+**Hands — `Fern/Ortholinear/Hands.lean`.** `handSides P I` are the key sets a hand can type while
+holding index piece `I`; there are 20 (`card_handSides`). `sameHandWeights_eq` says the same-hand
+weights of layouts with pieces `P` are exactly those sides' costs. `sideWeight` includes a key
+paired with itself.
+
+**The solver — `Fern/Solver/`.** `Spec.lean` is the `Finset` specification (`bestTriplesRef`,
+`indexCostTop`, `optimumRef`) with `optimumRef_isLeast_layouts`. `Proof/{Weights,Step,Fill,Split,
+Scan}.lean` refine `FernImpl` against it, ending in `Theorem.lean` (`solve_eq`, `solve_isLeast`,
+`solveText_isLeast`). `Keys.lean` fixes the 30 keys (`a`–`z` then `, . ' ;`, case-folded) and proves
+the one-pass counter `countLines` equal to `bigramCount`. `Certificate.lean` (`checkPieces_sound`)
+and `TieBreak.lean` (`checkTieBreak_sound`) are list-based checkers for `decide +kernel`: plain
+`decide` overflows the elaborator on a 900-entry table, and the `Finset` form of the tie-break took
+the kernel over two minutes against eight seconds for the list form. `Data/` holds generated
+certificates; regenerate them with `fern-solve`, never edit them.
+
 **`Fern/Frequency.lean`** is reserved for frequency *weighting* (rates, weighted costs) and
 declares nothing yet.
 
-## The exact solver's three libraries
+## The exact solver's four libraries
 
 The fewest-same-finger-bigram solver is split across libraries for reasons that are easy to undo
 by accident:
@@ -180,6 +207,12 @@ by accident:
 - **`FernAudit`** pins each headline theorem's axioms with `#guard_msgs in #print axioms`. It is a
   separate **non-module** library because `#print axioms` is rejected inside a `module` file, and it
   is a default target so `lake build` enforces it.
+- **`FernResults`** (`FernResults.lean`, non-module) holds the `native_decide` headline results
+  and their axiom pins, the only place native evaluation is allowed (in this Lean version
+  `native_decide` shows up as an auxiliary axiom such as `mr_solve._native.native_decide.ax_1_1`). It is **not** a default
+  target: building it reruns the full search (about eight minutes and 4.3 GB). It needs no
+  `precompileModules` of its own; Lake loads `FernImpl`'s native library, which measured at native
+  speed.
 
 Mark only the higher-order loops (`foldBits`, `scanWith`) `@[specialize]`. A first-order definition
 marked `@[specialize]` (`step` and `rowSum` once were) is kept as a template: its own compiled body

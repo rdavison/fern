@@ -29,6 +29,13 @@ text statistics combine to describe typing patterns and compare layouts.
   bigrams they change.
 - `Fern.Ortholinear.Corpus`: measuring a layout against a keystroke stream, and
   reading text into one through a keymap.
+- `Fern.Ortholinear.Pieces`: layouts up to equivalence are piece-sets, and the
+  same-finger cost is a sum over pieces.
+- `Fern.Ortholinear.Text`: reading prose so that unmapped characters break bigrams,
+  and spacegrams (key, space, key) kept apart from skipgrams.
+- `Fern.Ortholinear.Hands`: the twenty ways to share pieces between the hands.
+- `Fern.Solver`: an exact search for the fewest same-finger bigrams, proved correct,
+  with kernel-checked certificates.
 - `Fern.OrtholinearExamples`: checked examples of equivalent rearrangements
   and a counterexample where exchanging individual keys changes the SFB set.
 
@@ -114,6 +121,110 @@ Keycodes are generic and need not be characters. Frequency *weighting* (rates
 and weighted ergonomic costs) remains to be formalized. The physical keyboard
 renderer is still a separate API.
 
+## Pieces
+
+Up to equivalence, a layout is a *piece-set*: its thirty keys split into six unordered blocks
+of three and two unordered blocks of six, with no memory of rows, fingers or hands.
+`layoutClassEquiv` makes this exact, since equivalence classes and piece-sets are in bijection,
+and `card_pieceSets` recovers the class count above. The same-finger weight of a layout is the
+sum of its pieces' weights (`Layout.sfbWeight_eq_pieceCost`), and the count on a list of bigrams
+is that weight under the bigram counts (`Layout.sfbCountIn_eq_sfbWeight`).
+
+## Reading text
+
+`Keymap.bigramsOf` takes a text's own adjacent character pairs and keeps those with both
+characters mapped, so an unmapped character such as a space breaks the stream. The text splits
+into segments of mapped keys, and every corpus theorem applies segment by segment. Skipgrams
+(key, key, key) and spacegrams (key, space, key) are kept apart; only a literal space is a
+spacegram's middle, so separate lines never join.
+
+## The exact search
+
+`FernImpl.solve` finds the least same-finger weight over all 30! layouts of thirty keys. It does
+not enumerate layouts or classes. Instead it:
+
+1. fills a 2^30-cell table with the cheapest partition of every key set of size at most fifteen
+   into triples;
+2. scans all C(30,12) = 86,493,225 choices of index keys in 1024 parallel chunks;
+3. adds the cheapest six/six split of each choice to the best triples on its eighteen-key
+   complement.
+
+On an M4 Pro this takes about eight minutes and 4.3 GB.
+
+It is proved, in the kernel, to agree with a plain `Finset` specification:
+
+- `Fern.Solver.optimumRef_isLeast_layouts`: the specification is the least same-finger weight
+  over every layout.
+- `Fern.Solver.solve_eq`: whenever the weights fit its 32-bit table, `solve cnt` returns exactly
+  that value.
+- `Fern.Solver.solve_isLeast`, `Fern.Solver.solveText_isLeast`: any value it returns is the
+  least over every layout, for weights or for a text's bigram counts.
+
+The executable code in `FernImpl` imports no Mathlib and is compiled natively. Every theorem's
+axioms are pinned in `FernAudit`, and CI rejects `implemented_by`, `extern`, `unsafe`,
+`partial`, `native_decide` and `bv_decide` in solver code.
+
+Certificates re-check results using only the standard axioms:
+
+- `checkPieces_sound`: the reported pieces use every key once and cost the reported value, so
+  some layout achieves it.
+- `checkTieBreak_sound`: see below.
+
+## Hands and spacegrams
+
+Equivalence forgets hands, but the number of spacegrams typed by one hand does not. Each hand
+holds three simple pieces and one index piece. With the first index piece fixed on one hand,
+there are exactly twenty choices (`card_handSides`). They are exhaustive, every one is realised
+by a layout, and mirroring the hands changes nothing (`sameHandWeights_eq`). `checkTieBreak`
+evaluates all twenty with list functions for the kernel, and `checkTieBreak_sound` proves the
+least same-hand spacegram weight among layouts with a given piece-set.
+
+## Result: the fewest same-finger bigrams on monkeyracer
+
+On `mr.txt`, the AKL community's concatenation of Typeracer and Monkeytype quotes, the reading
+choices are:
+
+- keys `a`–`z` and `, . ' ;`, case-folded;
+- unmapped characters, including spaces, break bigrams.
+
+That gives 1,425,006 bigrams (provenance and tables in `data/`). The least possible same-finger
+bigram count over every layout of those thirty keys is **6,701** (0.47%). For comparison, QWERTY's
+columns give 85,943 on the same counts. The search took 8.4 minutes (210 s fill, 296 s scan).
+
+One piece-set achieves it, one finger per piece:
+
+| Index pieces | Simple pieces |
+|---|---|
+| `ywpgfc` `tqmkjd` | `;ue` `'oa` `.,i` `zxr` `vsb` `nlh` |
+
+Rows, fingers and the inner/outer index split are free. Hands are not, for spacegrams: of 405,924
+spacegrams, the best of the twenty hand assignments types 193,879 with one hand and 212,045
+alternating. It puts `ywpgfc 'oa vsb nlh` on one hand and `tqmkjd ;ue .,i zxr` on the other.
+
+| Claim | Theorem | Trust |
+|---|---|---|
+| Some layout has 6,701 | `Fern.Solver.Data.mr_upper` | kernel, standard axioms |
+| No layout has fewer | `mr_optimal` in `FernResults` | proved solver + `native_decide` |
+| 193,879 same-hand spacegrams is least for these pieces | `Fern.Solver.Data.mr_sameHand` | kernel, standard axioms |
+
+`FernResults` is not built by default: `lake build FernResults` reruns the search. Other
+SFB-optimal piece-sets, if any, are not explored; the search keeps the first mask it finds.
+
+## `fern-solve`
+
+```sh
+lake build fern-solve
+.lake/build/bin/fern-solve count TEXT > TABLE.tsv        # --skipgrams, --spacegrams
+.lake/build/bin/fern-solve check TEXT TABLE.tsv
+.lake/build/bin/fern-solve solve TABLE.tsv > RESULT
+.lake/build/bin/fern-solve cert NAME TABLE.tsv RESULT > Fern/Solver/Data/NAME.lean
+.lake/build/bin/fern-solve tiecert NAME SPACEGRAMS.tsv RESULT > Fern/Solver/Data/NAMEHands.lean
+```
+
+`count` and `check` read text through `countLines`, which is proved equal to the text's bigram
+counts. `solve` reports the proved optimum, then finds pieces achieving it and re-checks their
+cost directly.
+
 ## Build and run
 
 With [elan](https://github.com/leanprover/elan) installed, the pinned Lean version
@@ -155,4 +266,12 @@ open Fern.Ortholinear
 #check Layout.equivalent_iff_sfbCount_eq
 #check Layout.kindCount_add_unmappedCount
 #check Layout.abs_sfbCount_sub_swap_le
+
+#check layoutClassEquiv
+#check Layout.sfbWeight_eq_pieceCost
+#check sameHandWeights_eq
+#check Fern.Solver.solve_isLeast
+#check Fern.Solver.solveText_isLeast
+#check Fern.Solver.Data.mr_upper
+#check Fern.Solver.Data.mr_sameHand
 ```

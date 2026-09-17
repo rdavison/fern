@@ -26,3 +26,6 @@ weakLeanOptions = {"experimental.module" = true}
 
 [[lean_lib]]
 name = "FernAudit"
+
+[[lean_lib]]
+name = "FernResults"
