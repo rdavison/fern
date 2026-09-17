@@ -181,34 +181,79 @@ least same-hand spacegram weight among layouts with a given piece-set.
 
 ## Result: the fewest same-finger bigrams on monkeyracer
 
-On `mr.txt`, the AKL community's concatenation of Typeracer and Monkeytype quotes, the reading
-choices are:
+The corpus is `mr.txt` ("monkeyracer"), the AKL community's concatenation of the Typeracer and
+Monkeytype quotes. It is read as follows:
 
-- keys `a`–`z` and `, . ' ;`, case-folded;
-- unmapped characters, including spaces, break bigrams.
+- **Keys:** `a`–`z` and `, . ' ;`, with ASCII capitals folded to lower case.
+- **Unmapped characters:** everything else, including spaces, digits and `-`. Each one breaks the
+  stream, so no bigram spans it.
 
-That gives 1,425,006 bigrams (provenance and tables in `data/`). The least possible same-finger
-bigram count over every layout of those thirty keys is **6,701** (0.47%). For comparison, QWERTY's
-columns give 85,943 on the same counts. The search took 8.4 minutes (210 s fill, 296 s scan).
+That gives 1,425,006 bigrams. `data/` holds the count tables and the corpus checksum; the text
+itself is not redistributed.
 
-One piece-set achieves it, one finger per piece:
+**The least possible same-finger bigram count over every layout of those thirty keys is 6,701
+(0.470%).** QWERTY's columns give 85,943 on the same counts, almost thirteen times as many.
 
-| Index pieces | Simple pieces |
-|---|---|
-| `ywpgfc` `tqmkjd` | `;ue` `'oa` `.,i` `zxr` `vsb` `nlh` |
+This layout achieves it:
 
-Rows, fingers and the inner/outer index split are free. Hands are not, for spacegrams: of 405,924
-spacegrams, the best of the twenty hand assignments types 193,879 with one hand and 212,045
-alternating. It puts `ywpgfc 'oa vsb nlh` on one hand and `tqmkjd ;ue .,i zxr` on the other.
+```
+a v h g w   m k u . x
+o s n c y   t d e i r
+' b l f p   j q ; , z
+```
+
+Same-finger bigrams depend only on which keys share a finger, so rows, finger order and the
+inner/outer index split can be rearranged freely. Each column's most frequent key is on the home
+row, but nothing else about key placement is optimised. By finger:
+
+| Finger | Left | SFBs | Right | SFBs |
+|---|---|---:|---|---:|
+| Pinky | `'oa` | 881 | `zxr` | 6 |
+| Ring | `vsb` | 448 | `.,i` | 148 |
+| Middle | `nlh` | 1,587 | `;ue` | 1,775 |
+| Index | `ywpgfc` | 1,486 | `tqmkjd` | 370 |
+
+Other measures of the same layout on the same corpus:
+
+| Measure | Count | Total |
+|---|---:|---:|
+| Same-finger bigrams | 6,701 | 1,425,006 |
+| Same-finger skipgrams | 65,383 | 1,020,952 |
+| Same-finger spacegrams | 38,799 | 405,924 |
+| Same-hand spacegrams | 193,879 | 405,924 |
+| Alternating-hand spacegrams | 212,045 | 405,924 |
+
+Hands do not affect same-finger bigrams, but they do affect spacegrams (key, space, key). With these
+fingers there are exactly twenty ways to split the pieces between the hands, ranging from 193,879
+to 209,665 same-hand spacegrams. The layout above uses the unique best.
+
+What is proved, and how:
 
 | Claim | Theorem | Trust |
 |---|---|---|
 | Some layout has 6,701 | `Fern.Solver.Data.mr_upper` | kernel, standard axioms |
-| No layout has fewer | `mr_optimal` in `FernResults` | proved solver + `native_decide` |
-| 193,879 same-hand spacegrams is least for these pieces | `Fern.Solver.Data.mr_sameHand` | kernel, standard axioms |
+| No layout has fewer | `mr_optimal` in `FernResults` | proved solver, run by `native_decide` |
+| 193,879 is the fewest same-hand spacegrams with these fingers | `Fern.Solver.Data.mr_sameHand` | kernel, standard axioms |
 
-`FernResults` is not built by default: `lake build FernResults` reruns the search. Other
-SFB-optimal piece-sets, if any, are not explored; the search keeps the first mask it finds.
+`mr_optimal` combines `Fern.Solver.solve_isLeast` with `mr_solve : FernImpl.solve (tableFn
+mrTable) = some 6701`. That equation is checked by native evaluation, so it trusts the Lean compiler,
+which the pinned axioms show. Everything else in the table is kernel-checked. The search takes 8.4
+minutes on an M4 Pro (210 s fill, 296 s scan) and 4.3 GB. Checks outside Lean:
+
+- the bigram and spacegram tables match an independent Python count;
+- the layout's same-finger bigram count was recomputed from the grid;
+- the twenty spacegram costs were recomputed independently.
+
+The search reports one optimal piece-set. Whether others tie it was not explored.
+
+To reproduce, place the corpus at `data/mr.txt` (checksum in `data/README.md`), then run:
+
+```sh
+lake build fern-solve
+.lake/build/bin/fern-solve count data/mr.txt > data/mr.tsv
+.lake/build/bin/fern-solve solve data/mr.tsv > data/mr.result
+lake build FernResults   # reruns the search under native_decide
+```
 
 ## `fern-solve`
 
