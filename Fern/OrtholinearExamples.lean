@@ -1,6 +1,8 @@
 module
 public import Fern.Ortholinear.Classify
 public import Fern.Ortholinear.Swap
+public import Fern.Ortholinear.Corpus
+public import Fern.Ortholinear.Text
 import Mathlib.Logic.Equiv.Prod
 
 /-! Checked examples and counterexamples for the ortholinear model. -/
@@ -279,5 +281,123 @@ theorem swap_sizes_exhaustive {Keycode : Type} [DecidableEq Keycode] (L : Layout
   intro pq hpq
   rw [L.card_sfbsChanged_eq]
   exact changedCount_exhaustive pq hpq
+
+/-! ## Measuring layouts against a corpus
+
+`sfbCount` is computed here through `Layout.kindCount_sameFinger`, so `decide` runs the cheap
+list-based classifier instead of rebuilding `Layout.sfbs` for every bigram. -/
+
+/-- A short keystroke stream over `naturalKeycodes` touching every category, plus one keycode the
+layout does not use. -/
+def sampleCorpus : Corpus Nat := [0, 10, 1, 20, 3, 14, 9, 9, 100]
+
+theorem sample_bigrams :
+    Fern.Ngram.bigrams sampleCorpus =
+      [(0, 10), (10, 1), (1, 20), (20, 3), (3, 14), (14, 9), (9, 9), (9, 100)] := rfl
+
+theorem sample_sfbCount : naturalKeycodes.sfbCount sampleCorpus = 2 := by
+  rw [← Layout.kindCount_sameFinger]
+  decide
+
+theorem sample_split :
+    naturalKeycodes.kindCount .repeated sampleCorpus = 1 ∧
+      naturalKeycodes.kindCount .sameFinger sampleCorpus = 2 ∧
+      naturalKeycodes.kindCount .sameHandDifferentFinger sampleCorpus = 3 ∧
+      naturalKeycodes.kindCount .oppositeHands sampleCorpus = 1 ∧
+      naturalKeycodes.unmappedCount sampleCorpus = 1 := by decide
+
+theorem sample_not_supported : ¬naturalKeycodes.Supports sampleCorpus := by decide
+
+/-- The same stream without the unused keycode. -/
+def supportedCorpus : Corpus Nat := [0, 10, 1, 20, 3, 14, 9, 9]
+
+theorem supportedCorpus_supported : naturalKeycodes.Supports supportedCorpus := by decide
+
+theorem supported_split_is_total :
+    naturalKeycodes.kindCount .repeated supportedCorpus
+        + naturalKeycodes.kindCount .sameFinger supportedCorpus
+        + naturalKeycodes.kindCount .sameHandDifferentFinger supportedCorpus
+        + naturalKeycodes.kindCount .oppositeHands supportedCorpus
+      = supportedCorpus.length - 1 :=
+  naturalKeycodes.kindCount_sum_of_supports supportedCorpus_supported
+
+/-! ## Equivalence fixes same-finger counts but not the hand split -/
+
+/-- Two keystrokes that `simpleColumnSwap` moves onto opposite hands. -/
+def handCorpus : Corpus Position := [(0, 0), (0, 1)]
+
+theorem hand_corpus_sfbCount_agrees :
+    identityLayout.sfbCount handCorpus = simpleColumnSwap.sfbCount handCorpus :=
+  simple_column_swap_equivalent.sfbCount_eq handCorpus
+
+/-- Equivalent layouts, same corpus, different hand split: equivalence forgets hand. -/
+theorem hand_split_differs :
+    identityLayout.kindCount .oppositeHands handCorpus = 0 ∧
+      simpleColumnSwap.kindCount .oppositeHands handCorpus = 1 := by decide
+
+/-! ## Swaps against a corpus -/
+
+theorem pinky_swap_changes_count :
+    (naturalKeycodes.swapPositions (0, 0) (0, 9)).sfbCount supportedCorpus = 1 := by
+  rw [← Layout.kindCount_sameFinger]
+  decide
+
+theorem pinky_swap_touches :
+    touchCount (naturalKeycodes.keyAt (0, 0)) (naturalKeycodes.keyAt (0, 9)) supportedCorpus
+      = 3 := by decide
+
+theorem untouched_swap_preserves_count :
+    (naturalKeycodes.swapPositions (2, 8) (2, 9)).sfbCount supportedCorpus
+      = naturalKeycodes.sfbCount supportedCorpus :=
+  naturalKeycodes.sfbCount_swap_of_not_mem (by decide) (by decide)
+
+/-! ## Reading text through a keymap -/
+
+/-- Sends `a`, `b` and `c` to three left-hand keys and ignores everything else. -/
+def abcKeymap : Keymap Nat :=
+  ⟨fun ch => if ch = 'a' then some 0 else if ch = 'b' then some 10 else
+    if ch = 'c' then some 1 else none⟩
+
+theorem unmapped_characters_dropped : abcKeymap.corpus ['a', '?', 'b'] = [0, 10] := by decide
+
+/-- Dropping an unmapped character creates a bigram the text never contained: reading the text
+first yields `(0, 10)`, while mapping the text's own bigrams yields nothing. -/
+theorem keymap_joins_neighbours :
+    Fern.Ngram.bigrams (abcKeymap.corpus ['a', '?', 'b']) = [(0, 10)] ∧
+      (Fern.Ngram.bigrams ['a', '?', 'b']).filterMap
+          (fun p => (abcKeymap.toKeycode p.1).bind fun x =>
+            (abcKeymap.toKeycode p.2).map fun y => (x, y)) = [] := by decide
+
+theorem abcKeymap_mapsInto : abcKeymap.MapsInto naturalKeycodes.usedKeys := by
+  intro ch k h
+  simp only [abcKeymap] at h
+  split_ifs at h <;> cases h <;> decide
+
+theorem abc_text_is_supported (cs : List Char) : naturalKeycodes.Supports (abcKeymap.corpus cs) :=
+  naturalKeycodes.supports_corpus abcKeymap_mapsInto cs
+
+/-! ## Reading prose
+
+`bigramsOf` reads the text's own bigrams, so an unmapped character breaks the stream instead of
+joining its neighbours the way `corpus` does. -/
+
+theorem bigramsOf_breaks_at_unmapped : abcKeymap.bigramsOf ['a', '?', 'b'] = [] := rfl
+
+theorem bigramsOf_breaks_at_space : abcKeymap.bigramsOf ['a', 'b', ' ', 'c'] = [(0, 10)] := rfl
+
+theorem segments_split_at_space : abcKeymap.segments ['a', 'b', ' ', 'c'] = [[0, 10], [1]] := rfl
+
+/-- A space between two keys makes a spacegram, not a skipgram. -/
+theorem space_makes_spacegram : abcKeymap.spacegramsOf ['a', ' ', 'b'] = [(0, 10)] := rfl
+
+theorem space_is_not_skipgram : abcKeymap.skipgramsOf ['a', ' ', 'b'] = [] := rfl
+
+/-- A key between two keys makes a skipgram, not a spacegram. -/
+theorem key_makes_skipgram : abcKeymap.skipgramsOf ['a', 'c', 'b'] = [(0, 10)] := rfl
+
+theorem key_is_not_spacegram : abcKeymap.spacegramsOf ['a', 'c', 'b'] = [] := rfl
+
+/-- A newline is not a space, so separate lines never form a spacegram. -/
+theorem newline_is_not_spacegram : abcKeymap.spacegramsOf ['a', '\n', 'b'] = [] := rfl
 
 end Fern.Ortholinear.Examples

@@ -13,12 +13,21 @@ runs `leanprover/lean-action@v1`, which is just a build.
 
 ```sh
 lake exe cache get     # fetch prebuilt mathlib oleans — do this before the first build
-lake build             # build the Fern library (default target); the real "test suite"
+lake build             # builds Fern and FernAudit (default targets); the real "test suite"
 lake build Fern.Ortholinear   # build one module and its deps
 lake build fern-exe    # native build; `lake build` alone leaves the binary stale
 lake exe fern-exe      # prints Ortho3x10 and ANSI as ASCII art
 lake env lean Fern/Ortholinear.lean   # elaborate one file directly, ~10s; fastest edit loop
+lake build fern-solve  # the exact solver executable (Solve.lean)
+.lake/build/bin/fern-solve count TEXT > TABLE.tsv       # 900-entry bigram table (--skipgrams, --spacegrams)
+.lake/build/bin/fern-solve check TEXT TABLE.tsv         # compare a table with the text, all 900 entries
+.lake/build/bin/fern-solve solve TABLE.tsv > RESULT     # ~13 min, ~4.3 GB: optimum and pieces
+.lake/build/bin/fern-solve cert NAME TABLE.tsv RESULT > Fern/Solver/Data/NAME.lean
+.lake/build/bin/fern-solve tiecert NAME SPACEGRAMS.tsv RESULT > Fern/Solver/Data/NAMEHands.lean
 ```
+
+`solve` holds a 4 GiB table and reads it at random. On this 24 GB machine it ran at full speed only
+with a few GB free. When the system compressor holds most of that table, the search slows to a crawl.
 
 `lean-toolchain` pins `leanprover/lean4:v4.29.0-rc4` and elan selects it automatically.
 mathlib is required at `rev = "master"` in `lakefile.toml` but resolved to a fixed commit in
@@ -35,9 +44,10 @@ changes the surface syntax in ways that will not match most Lean code you have s
   does nothing but `public import` each module). A plain `import` is private to that file — e.g.
   `import Mathlib.Logic.Equiv.Prod` in `Fern/OrtholinearExamples.lean`.
 - Declarations are private by default. Two styles coexist, both valid:
-  - `Fern/Model.lean` and `Fern/Ngram.lean` annotate each declaration `public` or `private`.
-  - `Fern/Ortholinear.lean` and `Fern/OrtholinearExamples.lean` open an `@[expose] public section`
-    after the imports, so everything below it is public *and* definitionally transparent.
+  - `Fern/Model.lean` annotates each declaration `public` or `private`.
+  - `Fern/Ngram.lean`, `Fern/Ortholinear.lean`, the `Fern/Ortholinear/` modules and
+    `Fern/OrtholinearExamples.lean` open an `@[expose] public section` after the imports, so
+    everything below it is public *and* definitionally transparent.
 
 `@[expose]` is load-bearing, not decoration. Dropping it from `Fern/Ortholinear.lean` breaks that
 file's own build: `Layout.equivalent_refl` stops closing by `rfl` and the `Decidable (IsSFB L b)`
@@ -131,10 +141,102 @@ states the intent explicitly: closed finite computations go through the kernel, 
 `native_decide`. Keep it that way when adding examples; `native_decide` is reserved for the
 `Finset` nodup obligations in `Fern/Model.lean`.
 
-**`Fern/Ngram.lean`** is standalone character-list plumbing (`unigrams`, `bigrams`, `trigrams`,
-`skipgrams`, `trills` — `trills` detects ABA alternation). It is *not* wired to
-`Ortholinear.Bigram`; connecting corpus n-grams to the layout model is unfinished work.
-**`Fern/Frequency.lean`** is a stub (imports `Batteries`, opens `Std.HashMap`, nothing else).
+**N-grams — `Fern/Ngram.lean`.** The generic extractors live under `Fern.Ngram` and are defined
+by `zip` (`bigrams l := l.zip l.tail`), so their cons equations hold by `rfl` and core's `zip`
+lemmas apply. They are the single implementation. The top-level `unigrams`, `bigrams`,
+`trigrams`, `skipgrams` and `trills` are `Char` wrappers rendering windows as strings; private
+verbatim copies of their original recursions (`*Spec`) are proved equal, so any behaviour change
+fails the build. `trills` takes only `BEq`, matching the original `==`, and reports the `AB` of
+an `ABA`. The file needs `@[expose]`: `public` alone would export the names but not their
+unfolding, and downstream `rfl`/`decide` over `Ngram.bigrams` would fail.
+
+**Corpus metrics — `Fern/Ortholinear/Corpus.lean`.** `Corpus Keycode` is `List Keycode`, a
+keystroke stream independent of any layout. Each count exists at two levels, over an explicit
+list of bigrams (`sfbCountIn`, `kindCountIn`, …) where the inductions run, and over a corpus.
+`Layout.equivalent_iff_sfbCount_eq` is the headline: the backward direction instantiates the
+corpus at `[a, b]`, where `sfbCount_pair` makes the count an indicator of `IsSFB`. `classify?`
+classifies raw keycodes through `positionOf` and `positionKind`, returning `none` for keycodes
+the layout lacks, so the five-way partition (`kindCount_add_unmappedCount`) holds with no side
+condition; `Layout.Supports` is only a hypothesis for the four-way corollary. The hand split is
+**not** equivalence-invariant, by design. The swap bound is stated as two additive `Nat`
+inequalities plus a `ℤ` absolute value, never with `Nat` subtraction, and `Touches` orders its
+disjuncts to match `Layout.mem_sfbsChanged_touches` exactly. `Keymap.corpus` drops unmapped
+characters, which joins their neighbours; that non-commutation is intended and documented.
+
+**Pieces — `Fern/Ortholinear/Pieces.lean`.** A layout up to equivalence is a *piece-set*
+(`IsPieceSet`): six blocks of three keys and two of six. `layoutClassEquiv` identifies classes with
+piece-sets, and `Layout.sfbWeight_eq_pieceCost` makes the same-finger weight a per-piece sum.
+`Placement` is any size-matching injective assignment of pieces to finger columns, and `realize`
+builds the layout dropping them in (`exists_layoutOn_placement`); `canonicalPlacement` picks one
+arbitrarily for `exists_layoutOn_columns_eq`.
+
+**Text — `Fern/Ortholinear/Text.lean`.** `Keymap.bigramsOf` keeps a text's own adjacent pairs whose
+characters are both mapped, so unmapped characters (the space included) break bigrams, unlike
+`Keymap.corpus`. `skipgramsOf` and `spacegramsOf` take trigram outer pairs; only a literal `' '` is
+a spacegram middle.
+
+**Hands — `Fern/Ortholinear/Hands.lean`.** `handSides P I` are the key sets a hand can type while
+holding index piece `I`; there are 20 (`card_handSides`). `sameHandWeights_eq` says the same-hand
+weights of layouts with pieces `P` are exactly those sides' costs. `sideWeight` includes a key
+paired with itself.
+
+**The solver — `Fern/Solver/`.** `Spec.lean` is the `Finset` specification (`bestTriplesRef`,
+`indexCostTop`, `optimumRef`) with `optimumRef_isLeast_layouts`. `Proof/{Weights,Step,Fill,Split,
+Scan}.lean` refine `FernImpl` against it, ending in `Theorem.lean` (`solve_eq`, `solve_isLeast`,
+`solveText_isLeast`). `Keys.lean` fixes the 30 keys (`a`–`z` then `, . ' ;`, case-folded) and proves
+the one-pass counter `countLines` equal to `bigramCount`. `Certificate.lean` (`checkPieces_sound`)
+and `TieBreak.lean` (`checkTieBreak_sound`) are list-based checkers for `decide +kernel`: plain
+`decide` overflows the elaborator on a 900-entry table, and the `Finset` form of the tie-break took
+the kernel over two minutes against eight seconds for the list form. `Data/` holds generated
+certificates; regenerate them with `fern-solve`, never edit them.
+
+**`Fern/Frequency.lean`** is reserved for frequency *weighting* (rates, weighted costs) and
+declares nothing yet.
+
+## The exact solver's four libraries
+
+The fewest-same-finger-bigram solver is split across libraries for reasons that are easy to undo
+by accident:
+
+- **`FernImpl`** holds the executable code: packed tables and bit operations. It imports **no
+  Mathlib** and has `precompileModules = true`. Precompilation is required, not an optimisation:
+  `native_decide` over non-precompiled code runs in the interpreter, which measured **more than
+  63× slower** (a 3 s native computation had not finished after 300 s). Keep Mathlib out of it,
+  since precompiling Mathlib-dependent modules would need Mathlib as dynamic libraries.
+- **`Fern/Solver/Proof/*`** (in the `Fern` library) proves `FernImpl` correct, with Mathlib.
+- **`FernAudit`** pins each headline theorem's axioms with `#guard_msgs in #print axioms`. It is a
+  separate **non-module** library because `#print axioms` is rejected inside a `module` file, and it
+  is a default target so `lake build` enforces it.
+- **`FernResults`** (`FernResults.lean`, non-module) holds the `native_decide` headline results
+  and their axiom pins, the only place native evaluation is allowed (in this Lean version
+  `native_decide` shows up as an auxiliary axiom such as `mr_solve._native.native_decide.ax_1_1`). It is **not** a default
+  target: building it reruns the full search (about eight minutes and 4.3 GB). It needs no
+  `precompileModules` of its own; Lake loads `FernImpl`'s native library, which measured at native
+  speed.
+
+Mark only the higher-order loops (`foldBits`, `scanWith`) `@[specialize]`. A first-order definition
+marked `@[specialize]` (`step` and `rowSum` once were) is kept as a template: its own compiled body
+calls the generic loop through boxed closures, which made the table fill several times slower. After
+changing `FernImpl`, grep `.lake/build/ir/FernImpl/Solve.c` for `lean_alloc_closure` and
+`lean_apply`. Only the task-spawning lambdas and the unspecialized generic loop bodies should
+remain.
+
+CI greps `FernImpl` and `Fern/Solver` for `implemented_by`, `@[extern`, `unsafe`, `partial def`,
+`native_decide` and `bv_decide`: the axiom audit cannot see a definition whose compiled code differs
+from its logical model. `bv_decide` is banned because it relies on native evaluation; `bv_omega` is
+fine. Write verified loops as structural recursion on a `Nat` fuel, not `for`/`mut`.
+
+The solver proofs (`Fern/Solver/Proof/*`, headline theorems in `Fern/Solver/Theorem.lean`) hit
+three **kernel** traps. Elaboration succeeds and then `addDecl` reports `(kernel) deep recursion
+detected` or takes minutes; `set_option trace.profiler true` names the declaration.
+
+- A structurally recursive definition whose body reads the byte tables (`pop30`, `hibit`) cannot
+  have its equation lemmas checked. Keep the recursion generic in its step, as `scanWith` is for
+  `scanRange`.
+- A literal offset such as `c * 2 ^ 20 + 2 ^ 20` inside a lambda that the kernel must beta-compare
+  gets unfolded into successors. Take the constant as a variable (`inf_chunks` has `B`).
+- Rewriting at a concrete `List.range 1024`, or at `univ : Finset (Finset (Fin 30))`, is slow or
+  diverges. State the lemma for an arbitrary list or set and instantiate it once.
 
 ## Two traps that cost real time
 
@@ -152,7 +254,9 @@ end
 ```
 
 and uses the stated lemmas (`isSFB_iff`, `Layout.mem_sfbs`, `mem_positionSFBs`) instead of
-definitional unfolding. The attribute is local, so `decide`-based examples elsewhere still see
+definitional unfolding. The same applies to any exposed closed data, such as the 2^15-entry
+`hibTable` and `popTable` in `FernImpl.Bits`. `congr 1` on sums over a concrete `Finset.range`
+triggers it too; prove each side's equation separately and `rw` instead. The attribute is local, so `decide`-based examples elsewhere still see
 the definitions. Symptom: `(deterministic) timeout at 'whnf'` on a proof that looks trivial.
 
 **A `Fintype` instance on a closed type is executable code that runs at module
@@ -180,4 +284,10 @@ output — check `lake build fern-exe` output, not `lake build`.
   `positionSFBs` for each of the 435 position pairs takes about nine minutes, while the
   `List`-based check in `Fern/OrtholinearExamples.lean` takes seconds. Prefer `List` for
   anything quantified over many cases, and prove the expensive statement structurally instead.
-  That file is the slowest in the build at roughly 30s; the rest are a few seconds each.
+  That file is the slowest in the build at roughly 38s; the rest are a few seconds each.
+- For a closed equality of lists or other data, prefer `rfl` to `decide`. `decide` evaluates a
+  `DecidableEq` instance and the kernel re-checks it; on the prose-reading examples `rfl` was
+  roughly ten times cheaper (under 1s against about 11s for eight examples).
+- A concrete `sfbCount` should be computed as `rw [← Layout.kindCount_sameFinger]; decide`.
+  `kindCount` classifies through `positionOf`, a 30-element list search, while `sfbCount`
+  decides `IsSFB`, which rebuilds the `Layout.sfbs` `Finset` for every bigram.

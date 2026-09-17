@@ -11,4 +11,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+      - name: Forbid constructs the axiom audit cannot see in solver code
+        run: |
+          if grep -rnE 'implemented_by|@\[extern|unsafe|partial def|native_decide|bv_decide' FernImpl Fern/Solver; then
+            echo "Solver code must not use implemented_by, extern, unsafe, partial, native_decide or bv_decide."
+            exit 1
+          fi
       - uses: leanprover/lean-action@v1
